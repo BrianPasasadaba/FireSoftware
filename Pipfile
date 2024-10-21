@@ -4,10 +4,9 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-ultralytics = "*"
 opencv-python = "*"
-pillow = "*"
-flet = "*"
+ultralytics = "*"
+pyside6 = "*"
 
 [dev-packages]
 
