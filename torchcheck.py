@@ -1,3 +1,5 @@
 import torch
 
-a=torch.cuda.FloatTensor()
+a=torch.cuda.get_device_name()
+
+print(a)

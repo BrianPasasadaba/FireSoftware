@@ -5,6 +5,7 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget
 from PySide6.QtGui import QImage, QPixmap
 from ultralytics import YOLO
+import torch
 
 class YOLOv8App(QMainWindow):
     def __init__(self):
@@ -13,7 +14,17 @@ class YOLOv8App(QMainWindow):
         # Load YOLOv8 model
         self.model = YOLO('yolov8.pt')
 
+        # Check if CUDA is available and move the model to GPU
+        if torch.cuda.is_available():
+            self.device = 'cuda'
+            self.model.to(self.device)  # Move model to GPU
+            print("Using CUDA for YOLOv8 inference.")
+        else:
+            self.device = 'cpu'
+            print("CUDA not available, using CPU.")
+
         # Set up the video capture (webcam)
+        # "rtsp://Brian312:birthdayko@192.168.100.56/stream2" for IP Camera
         self.cap = cv2.VideoCapture(0)
 
         # Create a timer to update the frame periodically
@@ -29,12 +40,22 @@ class YOLOv8App(QMainWindow):
         self.setCentralWidget(container)
 
         # Start the timer (30 frames per second, adjust as needed)
-        self.timer.start(33)
+        self.timer.start(67)
 
     def update_frame(self):
         ret, frame = self.cap.read()
         if ret:
-            results = self.model(frame, stream=True)
+             # Resize the frame to a size that is divisible by 32
+            resized_frame = cv2.resize(frame, (640, 640))  # Resize to 640x640
+            
+            # Convert the frame from HWC (Height, Width, Channels) to BCHW (Batch, Channels, Height, Width)
+            frame_tensor = torch.from_numpy(resized_frame).permute(2, 0, 1).unsqueeze(0).float()  # Add batch dimension and convert to tensor
+            
+            # Normalize the frame
+            frame_tensor /= 255.0
+
+            # Perform YOLO inference
+            results = self.model(frame_tensor)
             boxes = []
 
             for result in results:
