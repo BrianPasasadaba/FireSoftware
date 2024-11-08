@@ -6,16 +6,67 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>850</width>
-    <height>300</height>
+    <width>700</width>
+    <height>500</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Dialog</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
+   <item row="1" column="0">
+    <widget class="QLabel" name="SDetect_message">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>100</height>
+      </size>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>24</pointsize>
+      </font>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">#SDetect_message{
+	color: rgba(237, 112, 39, 1);
+}</string>
+     </property>
+     <property name="text">
+      <string>Would you like
+to send a report to BFP?</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+    </widget>
+   </item>
    <item row="0" column="0">
-    <widget class="QLabel" name="FDetect_lb">
+    <widget class="QLabel" name="SDetect_header">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>400</width>
+       <height>200</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>300</height>
+      </size>
+     </property>
      <property name="font">
       <font>
        <pointsize>36</pointsize>
@@ -24,13 +75,12 @@
       </font>
      </property>
      <property name="styleSheet">
-      <string notr="true">#FDetect_lb{
-	color: orange;
-	border: 2px solid red;
+      <string notr="true">#SDetect_header{
+	color:rgba(0, 9, 73, 1);
 }</string>
      </property>
      <property name="text">
-      <string>A Fire Incident Report has been made.</string>
+      <string>A Fire has been Detected!</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>
@@ -38,6 +88,96 @@
      <property name="wordWrap">
       <bool>true</bool>
      </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QGroupBox" name="sd_btnbox">
+     <property name="styleSheet">
+      <string notr="true">#sd_btnbox{
+	border: none;
+}</string>
+     </property>
+     <property name="title">
+      <string/>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_2">
+      <item row="0" column="0">
+       <widget class="QPushButton" name="sd_yes">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>250</width>
+          <height>50</height>
+         </size>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>16</pointsize>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">#sd_yes{
+
+    border-radius: 5px;
+	background-color: rgba(0, 9, 73, 1);
+	color: white;
+}
+
+#sd_yes:hover {
+	background-color:rgba(0, 9, 73, 0.69);
+}</string>
+        </property>
+        <property name="text">
+         <string>YES</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QPushButton" name="sd_no">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>250</width>
+          <height>50</height>
+         </size>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>16</pointsize>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">#sd_no{
+
+    border-radius: 5px;
+	background-color: rgba(0, 9, 73, 1);
+	color: white;
+}
+
+#sd_no:hover {
+	background-color:rgba(0, 9, 73, 0.69);
+}</string>
+        </property>
+        <property name="text">
+         <string>NO</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </widget>
    </item>
   </layout>
