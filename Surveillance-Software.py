@@ -1,7 +1,12 @@
+#main.py
+
 import sys
+from PySide6 import QtWidgets, QtCore, QtUiTools
 from PySide6.QtWidgets import *
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import *
+from MainWindowFeed import Ui_MainWindow
+from Fire_Detection import *
 
 def load_ui(ui_file_name, parent=None):
     ui_file = QFile(ui_file_name)
@@ -17,7 +22,7 @@ def load_ui(ui_file_name, parent=None):
     return widget
 
 
-class MainScreen(QMainWindow):
+class MainScreen(QMainWindow,Ui_MainWindow):
 # LEFT HEADER ELEMENTS
 #feed_ipselect = Dropdown for Main Feed CCTV
 #add_btn = Add button for Add CCTV Pop Up Window
@@ -33,30 +38,36 @@ class MainScreen(QMainWindow):
 #lb_feed1 - lb_feed4 = label
     def __init__(self):
         super(MainScreen, self).__init__()
-        self.ui = load_ui("MainWindowFeed.ui", self)
-        self.ui.setWindowTitle("Surveillance Feed")
-        self.ui.showMaximized()
+        self.setWindowTitle("Surveillance Feed")
+        self.setupUi(self)
+        self.showMaximized()
         # any changes to this window should start with "self.ui"
 
+        # Initialize detection manager
+        self.detection_manager = DetectionManager()
+        
+        # Start main feed detection
+        self.detection_manager.start_detection(0, self.update_main_feed)
+
         #add to dropdown
-        self.ui.feed_ipselect.addItem("192.168.100.0 - Purok 2 Orchid Street")
-        self.ui.feed_ipselect.addItem("192.168.100.0 - Purok 3 Orchid Street")
+        self.feed_ipselect.addItem("192.168.100.0 - Purok 2 Orchid Street")
+        self.feed_ipselect.addItem("192.168.100.0 - Purok 3 Orchid Street")
         # set a specific selected value in dropdown
-        self.ui.feed_ipselect.setCurrentIndex(1)
+        self.feed_ipselect.setCurrentIndex(1)
          # Print current selection
-        current_ipfeed = self.ui.feed_ipselect.currentText()
+        current_ipfeed = self.feed_ipselect.currentText()
         print("Currently selected IP location:", current_ipfeed)
 
         #add to dropdown
-        self.ui.remove_ipselect.addItem("192.168.100.0 - Purok 2 Orchid Street")
-        self.ui.remove_ipselect.addItem("192.168.100.0 - Purok 3 Orchid Street")
-        self.ui.remove_ipselect.setCurrentIndex(0)
-        current_ipremove = self.ui.remove_ipselect.currentText()
+        self.remove_ipselect.addItem("192.168.100.0 - Purok 2 Orchid Street")
+        self.remove_ipselect.addItem("192.168.100.0 - Purok 3 Orchid Street")
+        self.remove_ipselect.setCurrentIndex(0)
+        current_ipremove = self.remove_ipselect.currentText()
         print("Currently selected IP location:", current_ipremove)
 
         #link function to button
-        self.ui.add_btn.clicked.connect(self.cctvsetup_dialog)
-        self.ui.remove_btn.clicked.connect(self.open_msg)
+        self.add_btn.clicked.connect(self.cctvsetup_dialog)
+        self.remove_btn.clicked.connect(self.open_msg)
 
         # Set up message box
         self.msgbox = QMessageBox(self)
@@ -75,6 +86,34 @@ class MainScreen(QMainWindow):
         # QMessageBox.Abort
         # QMessageBox.Retry
         # QMessageBox.Ignore
+
+    def update_main_feed(self, image):
+        """Updates the main feed display, resizing to fit label dimensions"""
+        # Get the label dimensions
+        label_width = self.lb_feed1.width()
+        label_height = self.lb_feed1.height()
+
+        # Scale the image to fit label dimensions
+        scaled_image = image.scaled(label_width, label_height, Qt.KeepAspectRatio)
+
+        # Update the label with the scaled image
+        self.lb_feed1.setPixmap(QPixmap.fromImage(scaled_image))
+        self.lb_feed1.setScaledContents(True)
+
+    def change_main_feed(self, index):
+        """Changes the main feed camera"""
+        # Stop current detection
+        self.detection_manager.stop_detection(0)
+        
+        # Start detection with new camera
+        # You'll need to map dropdown index to camera ID
+        camera_id = index  # Replace with actual camera ID mapping
+        self.detection_manager.start_detection(camera_id, self.update_main_feed)
+
+    def closeEvent(self, event):
+        """Clean up resources when closing the application"""
+        self.detection_manager.stop_all()
+        event.accept()
 
     def open_msg(self):
 
@@ -183,16 +222,11 @@ class MainScreen(QMainWindow):
 
 
 
-
-
-
-
-
-
-
 def surveillance():
     app = QApplication(sys.argv)
     win = MainScreen()
+    win.setWindowTitle("Surveillance Feed")
+    win.setGeometry(100, 100, 800, 600)
     win.show()
     sys.exit(app.exec())
 
