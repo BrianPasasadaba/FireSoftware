@@ -5,8 +5,9 @@ from PySide6 import QtWidgets, QtCore, QtUiTools
 from PySide6.QtWidgets import *
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import *
-from MainWindowFeed import Ui_MainWindow
+import UI
 from Fire_Detection import *
+
 
 def load_ui(ui_file_name, parent=None):
     ui_file = QFile(ui_file_name)
@@ -22,7 +23,7 @@ def load_ui(ui_file_name, parent=None):
     return widget
 
 
-class MainScreen(QMainWindow,Ui_MainWindow):
+class MainScreen(QMainWindow,UI.Ui_MainWindow):
 # LEFT HEADER ELEMENTS
 #feed_ipselect = Dropdown for Main Feed CCTV
 #add_btn = Add button for Add CCTV Pop Up Window
@@ -47,7 +48,7 @@ class MainScreen(QMainWindow,Ui_MainWindow):
         self.detection_manager = DetectionManager()
         
         # Start main feed detection
-        self.detection_manager.start_detection(0, self.update_main_feed)
+        # self.detection_manager.start_detection(0, self.update_main_feed)
 
         #add to dropdown
         self.feed_ipselect.addItem("192.168.100.0 - Purok 2 Orchid Street")
@@ -110,6 +111,43 @@ class MainScreen(QMainWindow,Ui_MainWindow):
         camera_id = index  # Replace with actual camera ID mapping
         self.detection_manager.start_detection(camera_id, self.update_main_feed)
 
+    def add_new_cctv_feed(self, cctv_info):
+        """Adds a new CCTV feed to the sub-feeds"""
+        # Update the IP location labels
+        self.ipinfo_feed2.setText(cctv_info["location"])
+        self.ipinfo_feed3.setText(cctv_info["location"])
+        self.ipinfo_feed4.setText(cctv_info["location"])
+
+        # Update the feed labels
+        self.lb_feed2.setText(f"FEED {self.feed_count + 1}")
+        self.lb_feed3.setText(f"FEED {self.feed_count + 2}")
+        self.lb_feed4.setText(f"FEED {self.feed_count + 3}")
+
+        # Start detection for the new feeds
+        self.detection_manager.start_detection(self.feed_count + 1, self.update_sub_feed2)
+        self.detection_manager.start_detection(self.feed_count + 2, self.update_sub_feed3)
+        self.detection_manager.start_detection(self.feed_count + 3, self.update_sub_feed4)
+
+        self.feed_count += 3  # Increment the feed count
+
+    def update_sub_feed2(self, image):
+        """Updates the second sub-feed display"""
+        pixmap = QPixmap.fromImage(image)
+        self.lb_feed2.setPixmap(pixmap)
+        self.lb_feed2.setScaledContents(True)
+
+    def update_sub_feed3(self, image):
+        """Updates the third sub-feed display"""
+        pixmap = QPixmap.fromImage(image)
+        self.lb_feed3.setPixmap(pixmap)
+        self.lb_feed3.setScaledContents(True)
+
+    def update_sub_feed4(self, image):
+        """Updates the fourth sub-feed display"""
+        pixmap = QPixmap.fromImage(image)
+        self.lb_feed4.setPixmap(pixmap)
+        self.lb_feed4.setScaledContents(True)
+
     def closeEvent(self, event):
         """Clean up resources when closing the application"""
         self.detection_manager.stop_all()
@@ -117,7 +155,7 @@ class MainScreen(QMainWindow,Ui_MainWindow):
 
     def open_msg(self):
 
-        current_ipremove = self.ui.remove_ipselect.currentText()
+        current_ipremove = self.remove_ipselect.currentText()
         self.msgbox.setText(f"Are you sure you want to remove {current_ipremove}?")
 
         # Calculate the center position for the message box
@@ -132,71 +170,93 @@ class MainScreen(QMainWindow,Ui_MainWindow):
     def cctvsetup_dialog(self):
         # Create the dialog and load SetupCCTV.ui into it
         setupdialog = QDialog(self)
-        setupdia_ui = load_ui("SetupCCTV.ui", setupdialog)
-        setupdia_ui.setWindowTitle("Setup CCTV")
+        setupdia_ui = UI.Ui_Dialog()
+        setupdia_ui.setupUi(setupdialog)
+        setupdialog.setWindowTitle("Setup CCTV")
 
         # Center the dialog on the screen
-        setupdia_ui.setModal(True)
-        setupdia_ui.setGeometry(
-            QStyle.alignedRect(
+        setupdialog.setModal(True)
+        setupdialog.setGeometry(
+            QStyle.alignedRect( 
                 Qt.LeftToRight,
                 Qt.AlignCenter,
-                setupdia_ui.size(),
+                setupdialog.size(),
                 QApplication.primaryScreen().availableGeometry()
             )
         )
         #INPUT FIELDS
-        #lineEdit_ip = IP ADDRESS
-        #lineEdit_usern = USERNAME
-        #lineEdit_pass = PASSWORD
-        #lineEdit_ccloc = CCTV LOCATION
+        lineEdit_ip = setupdia_ui.lineEdit_ip
+        lineEdit_usern = setupdia_ui.lineEdit_usern
+        lineEdit_pass = setupdia_ui.lineEdit_pass
+        lineEdit_ccloc = setupdia_ui.lineEdit_ccloc
         # FUNCTIONS AND CHANGES TO THIS DIALOG MUST BE INSERTED BELOW THIS LINE
 
         # Function to close dialog on submit button click
         def close_dialog():
             try:
-                setupdia_ui.accept()  # Attempt to close the dialog
+                # Get the input values from the fields
+                ip = lineEdit_ip.text()
+                username = lineEdit_usern.text()
+                password = lineEdit_pass.text()
+                cclocation = lineEdit_ccloc.text()
+
+                # Print or use the values as needed (for now just printing)
+                print(f"IP: {ip}, Username: {username}, Password: {password}, CCTV Location: {cclocation}")
+                
+                # Attempt to close the dialog
+                setupdialog.accept()  
             except Exception as e:
                 print("Failed to close the dialog:", e)
 
         setupdia_ui.pbtn_submit.clicked.connect(close_dialog)
-        setupdia_ui.error_msg.setText("This is the updated error message.")
+        #setupdia_ui.error_msg.setText("This is the updated error message.")
 
         # FUNCTIONS AND CHANGES TO THIS DIALOG MUST BE INSERTED ABOVE THIS LINE
 
         # Execute the dialog
-        setupdia_ui.exec()
+        setupdialog.exec()
 
     def firedetect_dialog(self):
-        firedetecdialog = QDialog(self)
-        fdetectdia_ui = load_ui("Fire_Detected.ui", firedetecdialog)
+        firedetectdialog = QDialog(self)
+        fdetectdia_ui = UI.Ui_FireDialog
+        fdetectdia_ui.setupUi(firedetectdialog)
         fdetectdia_ui.setWindowTitle("A Fire has been detected")
 
         # Center the dialog on the screen
-        fdetectdia_ui.setModal(True)
-        fdetectdia_ui.setGeometry(
+        firedetectdialog.setModal(True)
+        firedetectdialog.setGeometry(
             QStyle.alignedRect(
                 Qt.LeftToRight,
                 Qt.AlignCenter,
-                fdetectdia_ui.size(),
+                firedetectdialog.size(),
                 QApplication.primaryScreen().availableGeometry()
             )
         )
 
         # FUNCTIONS AND CHANGES TO THIS DIALOG MUST BE INSERTED BELOW THIS LINE
 
+        # Function to close dialog on submit button click
+        def close_dialog():
+            try:
+                firedetectdialog.accept()  # Attempt to close the dialog
+            except Exception as e:
+                print("Failed to close the dialog:", e)
+
+        firedetectdialog.sd_no.clicked.connect(close_dialog)
+
         # FUNCTIONS AND CHANGES TO THIS DIALOG MUST BE INSERTED ABOVE THIS LINE
 
-        fdetectdia_ui.exec()
+        firedetectdialog.exec()
 
     def smokedetect_dialog(self):
         smokedetecdialog = QDialog(self)
-        sdetectdia_ui = load_ui("Smoke_Detected.ui", smokedetecdialog)
-        sdetectdia_ui.setWindowTitle("A Smoke has been detected")
+        sdetectdia_ui = UI.Ui_SmokeDialog
+        sdetectdia_ui.setupUi(smokedetecdialog)
+        smokedetecdialog.setWindowTitle("A Smoke has been detected")
 
         # Center the dialog on the screen
-        sdetectdia_ui.setModal(True)
-        sdetectdia_ui.setGeometry(
+        smokedetecdialog.setModal(True)
+        smokedetecdialog.setGeometry(
             QStyle.alignedRect(
                 Qt.LeftToRight,
                 Qt.AlignCenter,
@@ -210,15 +270,15 @@ class MainScreen(QMainWindow,Ui_MainWindow):
         # Function to close dialog on submit button click
         def close_dialog():
             try:
-                sdetectdia_ui.accept()  # Attempt to close the dialog
+                smokedetecdialog.accept()  # Attempt to close the dialog
             except Exception as e:
                 print("Failed to close the dialog:", e)
 
-        sdetectdia_ui.sd_no.clicked.connect(close_dialog)
+        smokedetecdialog.sd_no.clicked.connect(close_dialog)
 
         # FUNCTIONS AND CHANGES TO THIS DIALOG MUST BE INSERTED ABOVE THIS LINE
 
-        sdetectdia_ui.exec()
+        smokedetecdialog.exec()
 
 
 
@@ -226,8 +286,8 @@ def surveillance():
     app = QApplication(sys.argv)
     win = MainScreen()
     win.setWindowTitle("Surveillance Feed")
-    win.setGeometry(100, 100, 800, 600)
-    win.show()
+    # win.setGeometry(100, 100, 800, 600)
+    win.showMaximized()
     sys.exit(app.exec())
 
 surveillance()
