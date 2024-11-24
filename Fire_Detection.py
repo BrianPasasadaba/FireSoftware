@@ -29,7 +29,7 @@ class VideoThread(QThread):
             ret, frame = cap.read()
             if ret:
                 # Resize the frame to a size that is divisible by 32
-                resized_frame = cv2.resize(frame, (640, 640))
+                resized_frame = cv2.resize(frame, (1024, 576))
                 
                 # Convert the frame from HWC to BCHW format
                 frame_tensor = torch.from_numpy(resized_frame).permute(2, 0, 1).unsqueeze(0).float()
