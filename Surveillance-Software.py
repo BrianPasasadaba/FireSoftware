@@ -1,13 +1,22 @@
 #main.py
 
 import sys
-from PySide6 import QtWidgets, QtCore, QtUiTools
+from PySide6 import QtWidgets, QtCore, QtUiTools, QtGui
+from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import *
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import *
 import UI
 from Fire_Detection import *
 
+
+def create_rtsp_url(cctv_info):
+    """Creates an RTSP URL from CCTV information"""
+    ip = cctv_info["ip"]
+    username = cctv_info["username"]
+    password = cctv_info["password"]
+    # Standard RTSP URL format: rtsp://username:password@ip_address:554/stream
+    return f"rtsp://{username}:{password}@{ip}:554/stream1" 
 
 def load_ui(ui_file_name, parent=None):
     ui_file = QFile(ui_file_name)
@@ -45,10 +54,18 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         # any changes to this window should start with "self.ui"
 
         # Initialize detection manager
+        self.feed_count = 0
         self.detection_manager = DetectionManager()
-        
+        self.active_feeds = {}
+
+        # Define default labels as class attribute
+        self.default_labels = {
+            "feed2": "FEED 2",
+            "feed3": "FEED 3",
+            "feed4": "FEED 4"
+        }
         # Start main feed detection
-        # self.detection_manager.start_detection(0, self.update_main_feed)
+        # self.start_main_feed(default_camera)        
 
         #add to dropdown
         self.feed_ipselect.addItem("192.168.100.0 - Purok 2 Orchid Street")
@@ -74,7 +91,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         self.msgbox = QMessageBox(self)
         self.msgbox.setWindowTitle("Warning Message")
         self.msgbox.setIcon(QMessageBox.Critical)
-        self.msgbox.setStandardButtons(QMessageBox.Cancel | QMessageBox.Retry | QMessageBox.Ignore | QMessageBox.Ok)
+        self.msgbox.setStandardButtons(QMessageBox.Cancel | QMessageBox.Ok)
         self.msgbox.setDefaultButton(QMessageBox.Ok)
         self.msgbox.setInformativeText("Lorem ipsum Fire Surveillance System")
         # QMessageBox.Ok
@@ -87,6 +104,12 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         # QMessageBox.Abort
         # QMessageBox.Retry
         # QMessageBox.Ignore
+
+    def start_main_feed(self, cctv_info):
+        """Starts the main feed with RTSP stream"""
+        rtsp_url = create_rtsp_url(cctv_info)
+        self.detection_manager.start_detection(rtsp_url, self.update_main_feed)
+        self.active_feeds["main"] = cctv_info
 
     def update_main_feed(self, image):
         """Updates the main feed display, resizing to fit label dimensions"""
@@ -102,51 +125,134 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         self.lb_feed1.setScaledContents(True)
 
     def change_main_feed(self, index):
-        """Changes the main feed camera"""
-        # Stop current detection
-        self.detection_manager.stop_detection(0)
+        """Changes the main feed camera using RTSP"""
+        # Stop current main feed
+        self.detection_manager.stop_detection("main")
         
-        # Start detection with new camera
-        # You'll need to map dropdown index to camera ID
-        camera_id = index  # Replace with actual camera ID mapping
-        self.detection_manager.start_detection(camera_id, self.update_main_feed)
+        # Get selected feed info
+        selected_text = self.feed_ipselect.currentText()
+        selected_ip = selected_text.split(" - ")[0]
+        
+        # Find corresponding CCTV info
+        for feed_id, info in self.active_feeds.items():
+            if info["ip"] == selected_ip:
+                rtsp_url = create_rtsp_url(info)
+                self.detection_manager.start_detection(rtsp_url, self.update_main_feed)
+                self.active_feeds["main"] = info
+                break
+
+    def reset_feed(self, ip_location):
+        """Resets a CCTV feed to default state"""
+        ip = ip_location.split(" - ")[0]
+        
+        for feed_id, info in list(self.active_feeds.items()):
+            if info["ip"] == ip:
+                # Stop the current detection
+                self.detection_manager.stop_detection(feed_id)
+                
+                # Remove from selection dropdowns
+                index = self.feed_ipselect.findText(ip_location)
+                if index >= 0:
+                    self.feed_ipselect.removeItem(index)
+                index = self.remove_ipselect.findText(ip_location)
+                if index >= 0:
+                    self.remove_ipselect.removeItem(index)
+                
+                # Reset feed to default state
+                if feed_id in ["feed2", "feed3", "feed4"]:
+                    # Reset the label text
+                    getattr(self, f"ipinfo_{feed_id}").setText("IP Location")
+                    getattr(self, f"lb_{feed_id}").setText(self.default_labels[feed_id])
+                    
+                    # Create a default QPixmap with background color
+                    default_pixmap = QPixmap(640, 360)  # 16:9 aspect ratio
+                    default_pixmap.fill(Qt.gray)  # Fill with gray background
+                    
+                    # Set the default pixmap
+                    getattr(self, f"lb_{feed_id}").setPixmap(default_pixmap)
+                    
+                    # Update active feeds with default values
+                    self.active_feeds[feed_id] = self.default_feed.copy()
+                    self.active_feeds[feed_id]["location"] = f"Default {feed_id.capitalize()}"
+                
+                break
+        
+        # Decrement feed count
+        if self.feed_count > 0:
+            self.feed_count -= 1
 
     def add_new_cctv_feed(self, cctv_info):
-        """Adds a new CCTV feed to the sub-feeds"""
-        # Update the IP location labels
-        self.ipinfo_feed2.setText(cctv_info["location"])
-        self.ipinfo_feed3.setText(cctv_info["location"])
-        self.ipinfo_feed4.setText(cctv_info["location"])
+        """Adds a new CCTV feed to the sub-feeds using RTSP."""
+        rtsp_url = create_rtsp_url(cctv_info)
+        
+        if self.feed_count == 0:
+            self.ipinfo_feed2.setText(cctv_info["location"])
+            self.lb_feed2.setText("FEED 2")
+            self.detection_manager.start_detection(rtsp_url, self.update_sub_feed2)
+            self.active_feeds["feed2"] = cctv_info
 
-        # Update the feed labels
-        self.lb_feed2.setText(f"FEED {self.feed_count + 1}")
-        self.lb_feed3.setText(f"FEED {self.feed_count + 2}")
-        self.lb_feed4.setText(f"FEED {self.feed_count + 3}")
+        elif self.feed_count == 1:
+            self.ipinfo_feed3.setText(cctv_info["location"])
+            self.lb_feed3.setText("FEED 3")
+            self.detection_manager.start_detection(rtsp_url, self.update_sub_feed3)
+            self.active_feeds["feed3"] = cctv_info
 
-        # Start detection for the new feeds
-        self.detection_manager.start_detection(self.feed_count + 1, self.update_sub_feed2)
-        self.detection_manager.start_detection(self.feed_count + 2, self.update_sub_feed3)
-        self.detection_manager.start_detection(self.feed_count + 3, self.update_sub_feed4)
+        elif self.feed_count == 2:
+            self.ipinfo_feed4.setText(cctv_info["location"])
+            self.lb_feed4.setText("FEED 4")
+            self.detection_manager.start_detection(rtsp_url, self.update_sub_feed4)
+            self.active_feeds["feed4"] = cctv_info
 
-        self.feed_count += 3  # Increment the feed count
+        self.feed_count += 1
+        
+        # Add the new feed to the selection dropdowns
+        feed_text = f"{cctv_info['ip']} - {cctv_info['location']}"
+        self.feed_ipselect.addItem(feed_text)
+        self.remove_ipselect.addItem(feed_text)
 
     def update_sub_feed2(self, image):
-        """Updates the second sub-feed display"""
-        pixmap = QPixmap.fromImage(image)
-        self.lb_feed2.setPixmap(pixmap)
-        self.lb_feed2.setScaledContents(True)
+        """Updates the second sub-feed display, preserving 16:9 aspect ratio"""
+
+        label_width = self.lb_feed2.width()
+        label_height = self.lb_feed2.height()
+
+        # Calculate the height based on the 16:9 aspect ratio
+        target_width = label_height * 16 / 9
+
+        # Scale the image to the calculated height, preserving aspect ratio
+        scaled_image = image.scaledToWidth(int(target_width))
+
+        # Update the label with the scaled image
+        self.lb_feed2.setPixmap(QPixmap.fromImage(scaled_image))
+
 
     def update_sub_feed3(self, image):
         """Updates the third sub-feed display"""
-        pixmap = QPixmap.fromImage(image)
-        self.lb_feed3.setPixmap(pixmap)
-        self.lb_feed3.setScaledContents(True)
+        label_width = self.lb_feed3.width()
+        label_height = self.lb_feed3.height()
+
+        # Calculate the height based on the 16:9 aspect ratio
+        target_width = label_height * 16 / 9
+
+        # Scale the image to the calculated height, preserving aspect ratio
+        scaled_image = image.scaledToWidth(int(target_width))
+
+        # Update the label with the scaled image
+        self.lb_feed3.setPixmap(QPixmap.fromImage(scaled_image))
 
     def update_sub_feed4(self, image):
         """Updates the fourth sub-feed display"""
-        pixmap = QPixmap.fromImage(image)
-        self.lb_feed4.setPixmap(pixmap)
-        self.lb_feed4.setScaledContents(True)
+        label_width = self.lb_feed4.width()
+        label_height = self.lb_feed4.height()
+
+        # Calculate the height based on the 16:9 aspect ratio
+        target_width = label_height * 16 / 9
+
+        # Scale the image to the calculated height, preserving aspect ratio
+        scaled_image = image.scaledToWidth(int(target_width))
+
+        # Update the label with the scaled image
+        self.lb_feed4.setPixmap(QPixmap.fromImage(scaled_image))
 
     def closeEvent(self, event):
         """Clean up resources when closing the application"""
@@ -165,7 +271,10 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         self.msgbox.move(msgbox_geometry.topLeft())
 
         # Display the message box
-        self.msgbox.exec()
+        # Handle the message box result
+        result = self.msgbox.exec()
+        if result == QMessageBox.Ok:
+            self.reset_feed(current_ipremove)
 
     def cctvsetup_dialog(self):
         # Create the dialog and load SetupCCTV.ui into it
@@ -200,11 +309,22 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
                 password = lineEdit_pass.text()
                 cclocation = lineEdit_ccloc.text()
 
+                # Prepare the data to pass
+                cctv_info = {
+                    "ip": ip,
+                    "username": username,
+                    "password": password,
+                    "location": cclocation
+                }
+
+                # Pass data directly to the MainScreen method
+                self.add_new_cctv_feed(cctv_info)
+
                 # Print or use the values as needed (for now just printing)
                 print(f"IP: {ip}, Username: {username}, Password: {password}, CCTV Location: {cclocation}")
                 
-                # Attempt to close the dialog
-                setupdialog.accept()  
+                # Close the dialog
+                setupdialog.accept()
             except Exception as e:
                 print("Failed to close the dialog:", e)
 
