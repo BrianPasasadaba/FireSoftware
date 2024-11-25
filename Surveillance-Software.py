@@ -65,6 +65,8 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         # Connect the change feed signal
         self.feed_ipselect.currentIndexChanged.connect(self.change_main_feed)
 
+        self.detection_manager.start_detection(0, self.update_main_feed, self.firedetect_dialog, self.smokedetect_dialog)
+
         #add to dropdown
         self.remove_ipselect.addItem("192.168.100.0 - Purok 2 Orchid Street")
         self.remove_ipselect.addItem("192.168.100.0 - Purok 3 Orchid Street")
@@ -404,7 +406,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
 
     def firedetect_dialog(self):
         firedetectdialog = QDialog(self)
-        fdetectdia_ui = UI.Ui_FireDialog
+        fdetectdia_ui = UI.Ui_FireDialog()
         fdetectdia_ui.setupUi(firedetectdialog)
         fdetectdia_ui.setWindowTitle("A Fire has been detected")
 
@@ -428,7 +430,8 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
             except Exception as e:
                 print("Failed to close the dialog:", e)
 
-        firedetectdialog.sd_no.clicked.connect(close_dialog)
+        fdetectdia_ui.sd_yes.clicked.connect(close_dialog)
+        fdetectdia_ui.sd_no.clicked.connect(close_dialog)
 
         # FUNCTIONS AND CHANGES TO THIS DIALOG MUST BE INSERTED ABOVE THIS LINE
 
@@ -436,7 +439,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
 
     def smokedetect_dialog(self):
         smokedetecdialog = QDialog(self)
-        sdetectdia_ui = UI.Ui_SmokeDialog
+        sdetectdia_ui = UI.Ui_SmokeDialog()
         sdetectdia_ui.setupUi(smokedetecdialog)
         smokedetecdialog.setWindowTitle("A Smoke has been detected")
 
@@ -446,7 +449,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
             QStyle.alignedRect(
                 Qt.LeftToRight,
                 Qt.AlignCenter,
-                sdetectdia_ui.size(),
+                smokedetecdialog.size(),
                 QApplication.primaryScreen().availableGeometry()
             )
         )
@@ -460,7 +463,8 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
             except Exception as e:
                 print("Failed to close the dialog:", e)
 
-        smokedetecdialog.sd_no.clicked.connect(close_dialog)
+        sdetectdia_ui.sd_yes.clicked.connect(close_dialog)
+        sdetectdia_ui.sd_no.clicked.connect(close_dialog)
 
         # FUNCTIONS AND CHANGES TO THIS DIALOG MUST BE INSERTED ABOVE THIS LINE
 
