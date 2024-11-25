@@ -97,7 +97,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
     def start_main_feed(self, cctv_info):
         """Starts the main feed with RTSP stream"""
         rtsp_url = create_rtsp_url(cctv_info)
-        self.detection_manager.start_detection(rtsp_url, self.update_main_feed)
+        self.detection_manager.start_detection(rtsp_url, self.update_main_feed, self.firedetect_dialog, self.smokedetect_dialog)
         self.active_feeds["main"] = cctv_info
 
     def update_main_feed(self, image):
@@ -167,7 +167,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
             
             # Start new main feed
             rtsp_url = create_rtsp_url(target_feed_info)
-            self.detection_manager.start_detection(rtsp_url, self.update_main_feed)
+            self.detection_manager.start_detection(rtsp_url, self.update_main_feed, self.firedetect_dialog, self.smokedetect_dialog)
             
             # Update main feed with selected feed info
             self.active_feeds["main"] = target_feed_info.copy()
@@ -189,7 +189,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
                 update_method = getattr(self, f"update_sub_feed{target_feed_id[-1]}", None)
                 if update_method:
                     self.detection_manager.stop_detection(target_feed_id)  # Stop existing feed first
-                    self.detection_manager.start_detection(rtsp_url_old_main, update_method)
+                    self.detection_manager.start_detection(rtsp_url_old_main, update_method, self.firedetect_dialog, self.smokedetect_dialog)
             except Exception as e:
                 print(f"Error updating UI elements: {e}")
                 
@@ -237,7 +237,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
             self.feed_count -= 1
 
     def add_new_cctv_feed(self, cctv_info):
-        """Adds a new CCTV feed to the sub-feeds using RTSP."""
+        """Adds a new CCTV feed to the system, prioritizing the main feed if empty."""
         rtsp_url = create_rtsp_url(cctv_info)
         feed_text = f"{cctv_info['ip']} - {cctv_info['location']}"
 
@@ -245,7 +245,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         if "main" not in self.active_feeds:
             # Start as main feed
             self.ipinfo_feed1.setText(cctv_info["location"])
-            self.detection_manager.start_detection(rtsp_url, self.update_main_feed)
+            self.detection_manager.start_detection(rtsp_url, self.update_main_feed, self.firedetect_dialog, self.smokedetect_dialog)
             self.active_feeds["main"] = cctv_info
             
             # Add to selection dropdowns
@@ -263,7 +263,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         if self.feed_count in feed_mapping:
             feed_key, update_method, feed_label = feed_mapping[self.feed_count]
             feed_label.setText(cctv_info["location"])
-            self.detection_manager.start_detection(rtsp_url, update_method)
+            self.detection_manager.start_detection(rtsp_url, update_method, self.firedetect_dialog, self.smokedetect_dialog)
             self.active_feeds[feed_key] = cctv_info
         else:
             print("Maximum number of feeds reached")
