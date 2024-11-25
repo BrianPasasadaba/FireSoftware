@@ -18,20 +18,6 @@ def create_rtsp_url(cctv_info):
     # Standard RTSP URL format: rtsp://username:password@ip_address:554/stream
     return f"rtsp://{username}:{password}@{ip}:554/stream1" 
 
-def load_ui(ui_file_name, parent=None):
-    ui_file = QFile(ui_file_name)
-    if not ui_file.exists():
-        print(f"Error: The file '{ui_file_name}' was not found.")
-        return None
-    ui_file.open(QFile.ReadOnly)
-    loader = QUiLoader()
-    widget = loader.load(ui_file, parent)
-    ui_file.close()
-    if widget is None:
-        print(f"Error: Failed to load '{ui_file_name}'")
-    return widget
-
-
 class MainScreen(QMainWindow,UI.Ui_MainWindow):
 # LEFT HEADER ELEMENTS
 #feed_ipselect = Dropdown for Main Feed CCTV
