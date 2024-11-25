@@ -2,7 +2,7 @@
 
 import sys
 from PySide6 import QtWidgets, QtCore, QtUiTools, QtGui
-from PySide6.QtGui import QPainter
+from PySide6.QtGui import QPainter, QPixmap
 from PySide6.QtWidgets import *
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import *
@@ -76,6 +76,9 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         current_ipfeed = self.feed_ipselect.currentText()
         print("Currently selected IP location:", current_ipfeed)
 
+        # Connect the change feed signal
+        self.feed_ipselect.currentIndexChanged.connect(self.change_main_feed)
+
         #add to dropdown
         self.remove_ipselect.addItem("192.168.100.0 - Purok 2 Orchid Street")
         self.remove_ipselect.addItem("192.168.100.0 - Purok 3 Orchid Street")
@@ -112,34 +115,100 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         self.active_feeds["main"] = cctv_info
 
     def update_main_feed(self, image):
-        """Updates the main feed display, resizing to fit label dimensions"""
-        # Get the label dimensions
-        label_width = self.lb_feed1.width()
-        label_height = self.lb_feed1.height()
+        """Updates the main feed display"""
+        if not isinstance(image, QImage):
+            print("Warning: Invalid image format received")
+            return
+            
+        try:
+            label_width = self.lb_feed1.width()
+            label_height = self.lb_feed1.height()
 
-        # Scale the image to fit label dimensions
-        scaled_image = image.scaled(label_width, label_height, Qt.KeepAspectRatio)
-
-        # Update the label with the scaled image
-        self.lb_feed1.setPixmap(QPixmap.fromImage(scaled_image))
-        self.lb_feed1.setScaledContents(True)
+            scaled_image = image.scaled(label_width, label_height, Qt.KeepAspectRatio)
+            self.lb_feed1.setPixmap(QPixmap.fromImage(scaled_image))
+            self.lb_feed1.setScaledContents(True)
+        except Exception as e:
+            print(f"Error updating main feed: {e}")
 
     def change_main_feed(self, index):
-        """Changes the main feed camera using RTSP"""
-        # Stop current main feed
-        self.detection_manager.stop_detection("main")
+        """
+        Changes the main feed camera and handles feed swapping.
         
-        # Get selected feed info
-        selected_text = self.feed_ipselect.currentText()
-        selected_ip = selected_text.split(" - ")[0]
-        
-        # Find corresponding CCTV info
-        for feed_id, info in self.active_feeds.items():
-            if info["ip"] == selected_ip:
-                rtsp_url = create_rtsp_url(info)
-                self.detection_manager.start_detection(rtsp_url, self.update_main_feed)
-                self.active_feeds["main"] = info
-                break
+        Args:
+            index (int): Index of the selected feed in the feed_ipselect dropdown
+        """
+        # Validate index
+        if index < 0 or index >= self.feed_ipselect.count():
+            print(f"Warning: Invalid feed index {index}")
+            return
+            
+        try:
+            selected_text = self.feed_ipselect.currentText()
+            if not selected_text:
+                print("Warning: No feed selected")
+                return
+                
+            # Parse IP and location
+            try:
+                selected_ip, selected_location = selected_text.split(" - ", 1)
+            except ValueError:
+                print(f"Error: Invalid feed format: {selected_text}")
+                return
+            
+            # Find the feed info for the selected IP and location
+            target_feed_info = None
+            target_feed_id = None
+            
+            for feed_id, info in self.active_feeds.items():
+                if info.get("ip") == selected_ip and info.get("location") == selected_location:
+                    target_feed_info = info
+                    target_feed_id = feed_id
+                    break
+            
+            if not target_feed_info:
+                print(f"Warning: Could not find feed information for {selected_text}")
+                return
+                
+            if target_feed_id == "main":
+                # No need to swap if selecting the same feed
+                return
+                
+            # Stop current main feed
+            self.detection_manager.stop_detection("main")
+            
+            # Store the old main feed info
+            old_main_feed = self.active_feeds["main"].copy()
+            
+            # Start new main feed
+            rtsp_url = create_rtsp_url(target_feed_info)
+            self.detection_manager.start_detection(rtsp_url, self.update_main_feed)
+            
+            # Update main feed with selected feed info
+            self.active_feeds["main"] = target_feed_info.copy()
+
+            # Update main feed location text
+            self.ipinfo_feed1.setText(target_feed_info["location"])
+            
+            # Update the original feed location with main feed info
+            self.active_feeds[target_feed_id] = old_main_feed
+            
+            # Update the UI labels for the swapped feed
+            try:
+                info_label = getattr(self, f"ipinfo_{target_feed_id}")
+                if info_label:
+                    info_label.setText(old_main_feed["location"])
+                
+                # Update the feed display for the swapped feed
+                rtsp_url_old_main = create_rtsp_url(old_main_feed)
+                update_method = getattr(self, f"update_sub_feed{target_feed_id[-1]}", None)
+                if update_method:
+                    self.detection_manager.stop_detection(target_feed_id)  # Stop existing feed first
+                    self.detection_manager.start_detection(rtsp_url_old_main, update_method)
+            except Exception as e:
+                print(f"Error updating UI elements: {e}")
+                
+        except Exception as e:
+            print(f"Error in change_main_feed: {e}")
 
     def reset_feed(self, ip_location):
         """Resets a CCTV feed to default state"""
@@ -184,31 +253,42 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
     def add_new_cctv_feed(self, cctv_info):
         """Adds a new CCTV feed to the sub-feeds using RTSP."""
         rtsp_url = create_rtsp_url(cctv_info)
-        
-        if self.feed_count == 0:
-            self.ipinfo_feed2.setText(cctv_info["location"])
-            self.lb_feed2.setText("FEED 2")
-            self.detection_manager.start_detection(rtsp_url, self.update_sub_feed2)
-            self.active_feeds["feed2"] = cctv_info
+        feed_text = f"{cctv_info['ip']} - {cctv_info['location']}"
 
-        elif self.feed_count == 1:
-            self.ipinfo_feed3.setText(cctv_info["location"])
-            self.lb_feed3.setText("FEED 3")
-            self.detection_manager.start_detection(rtsp_url, self.update_sub_feed3)
-            self.active_feeds["feed3"] = cctv_info
+        # Check if main feed exists
+        if "main" not in self.active_feeds:
+            # Start as main feed
+            self.ipinfo_feed1.setText(cctv_info["location"])
+            self.detection_manager.start_detection(rtsp_url, self.update_main_feed)
+            self.active_feeds["main"] = cctv_info
+            
+            # Add to selection dropdowns
+            self.feed_ipselect.addItem(feed_text)
+            self.remove_ipselect.addItem(feed_text)
+            return
 
-        elif self.feed_count == 2:
-            self.ipinfo_feed4.setText(cctv_info["location"])
-            self.lb_feed4.setText("FEED 4")
-            self.detection_manager.start_detection(rtsp_url, self.update_sub_feed4)
-            self.active_feeds["feed4"] = cctv_info
+        # Map feed_count to the corresponding feed
+        feed_mapping = {
+            0: ("feed2", self.update_sub_feed2, self.ipinfo_feed2),
+            1: ("feed3", self.update_sub_feed3, self.ipinfo_feed3),
+            2: ("feed4", self.update_sub_feed4, self.ipinfo_feed4),
+        }
+
+        if self.feed_count in feed_mapping:
+            feed_key, update_method, feed_label = feed_mapping[self.feed_count]
+            feed_label.setText(cctv_info["location"])
+            self.detection_manager.start_detection(rtsp_url, update_method)
+            self.active_feeds[feed_key] = cctv_info
+        else:
+            print("Maximum number of feeds reached")
+            return
 
         self.feed_count += 1
-        
+
         # Add the new feed to the selection dropdowns
-        feed_text = f"{cctv_info['ip']} - {cctv_info['location']}"
         self.feed_ipselect.addItem(feed_text)
         self.remove_ipselect.addItem(feed_text)
+
 
     def update_sub_feed2(self, image):
         """Updates the second sub-feed display, preserving 16:9 aspect ratio"""
