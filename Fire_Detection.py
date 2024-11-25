@@ -19,7 +19,7 @@ class VideoThread(QThread):
         # Add cooldown tracking to prevent spam
         self.last_fire_alert = 0
         self.last_smoke_alert = 0
-        self.alert_cooldown = 1000  # Seconds between alerts
+        self.alert_cooldown = 10  # Seconds between alerts
         
         # Check if CUDA is available
         if torch.cuda.is_available():
@@ -57,14 +57,19 @@ class VideoThread(QThread):
                         confidence = float(box.conf[0])
                         class_id = int(box.cls[0])
                         label = self.model.names[class_id]
-                        
+
+                        # Debug print
+                        print(f"Detected: {label} with confidence: {confidence:.2f}")   
+
                         # Check for fire or smoke detections
-                        if label.lower() == 'fire' and confidence > 0.5:
+                        if label == 'Fire' and confidence > 0.5:
                             fire_detected = True
                             color = (0, 0, 255)  # Red for fire
-                        elif label.lower() == 'smoke' and confidence > 0.5:
+                            print(f"Fire detected with confidence {confidence:.2f}")
+                        elif label == 'smoke' and confidence > 0.5:
                             smoke_detected = True
                             color = (128, 128, 128)  # Gray for smoke
+                            print(f"Smoke detected with confidence {confidence:.2f}")
                         else:
                             color = (0, 255, 0)  # Green for other objects
                         
