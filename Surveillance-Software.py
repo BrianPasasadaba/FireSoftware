@@ -8,7 +8,16 @@ from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import *
 import UI
 from Fire_Detection import *
+import datetime
+from supabase import create_client, Client
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
+
+url : str = os.getenv("SUPABASE_URL")
+key : str = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(url, key)
 
 def create_rtsp_url(cctv_info):
     """Creates an RTSP URL from CCTV information"""

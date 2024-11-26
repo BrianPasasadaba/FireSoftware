@@ -19,6 +19,8 @@ ultralytics = "*"
 pyside6 = "*"
 torch = {version = "==2.5.0", index = "downloadpytorch-918"}
 torchvision = {version = "==0.20.0", index = "downloadpytorch-918"}
+python-dotenv = "*"
+supabase = "*"
 
 [dev-packages]
 
