@@ -8,10 +8,15 @@ from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import *
 import UI
 from Fire_Detection import *
-import datetime
+from datetime import datetime
 from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
+import traceback
+import tempfile
+import requests
+import threading
+import time
 
 load_dotenv()
 
@@ -22,6 +27,8 @@ supabase: Client = create_client(url, key)
 def create_rtsp_url(cctv_info):
     """Creates an RTSP URL from CCTV information"""
     ip = cctv_info["ip"]
+    if ip == "0":
+        return 0
     username = cctv_info["username"]
     password = cctv_info["password"]
     # Standard RTSP URL format: rtsp://username:password@ip_address:554/stream
@@ -53,6 +60,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         self.detection_manager = DetectionManager()
         self.active_feeds = {}
 
+
         # Define default labels as class attribute
         self.default_labels = {
             "feed2": "FEED 2",
@@ -63,10 +71,10 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         # self.start_main_feed(default_camera)        
 
         #add to dropdown
-        self.feed_ipselect.addItem("192.168.100.0 - Purok 2 Orchid Street")
-        self.feed_ipselect.addItem("192.168.100.0 - Purok 3 Orchid Street")
+        #self.feed_ipselect.addItem("192.168.100.0 - Purok 2 Orchid Street")
+        #self.feed_ipselect.addItem("192.168.100.0 - Purok 3 Orchid Street")
         # set a specific selected value in dropdown
-        self.feed_ipselect.setCurrentIndex(1)
+        self.feed_ipselect.setCurrentIndex(0)
          # Print current selection
         current_ipfeed = self.feed_ipselect.currentText()
         print("Currently selected IP location:", current_ipfeed)
@@ -74,11 +82,11 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         # Connect the change feed signal
         self.feed_ipselect.currentIndexChanged.connect(self.change_main_feed)
 
-        self.detection_manager.start_detection(0, self.update_main_feed, self.firedetect_dialog, self.smokedetect_dialog)
+        #self.detection_manager.start_detection(0, self.update_main_feed, self.firedetect_dialog, self.smokedetect_dialog,feed_id = 'main')
 
         #add to dropdown
-        self.remove_ipselect.addItem("192.168.100.0 - Purok 2 Orchid Street")
-        self.remove_ipselect.addItem("192.168.100.0 - Purok 3 Orchid Street")
+        #self.remove_ipselect.addItem("192.168.100.0 - Purok 2 Orchid Street")
+        #self.remove_ipselect.addItem("192.168.100.0 - Purok 3 Orchid Street")
         self.remove_ipselect.setCurrentIndex(0)
         current_ipremove = self.remove_ipselect.currentText()
         print("Currently selected IP location:", current_ipremove)
@@ -108,7 +116,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
     def start_main_feed(self, cctv_info):
         """Starts the main feed with RTSP stream"""
         rtsp_url = create_rtsp_url(cctv_info)
-        self.detection_manager.start_detection(rtsp_url, self.update_main_feed, self.firedetect_dialog, self.smokedetect_dialog)
+        self.detection_manager.start_detection(rtsp_url, self.update_main_feed, self.firedetect_dialog, self.smokedetect_dialog, feed_id='main')
         self.active_feeds["main"] = cctv_info
 
     def update_main_feed(self, image):
@@ -176,33 +184,35 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
             # Store the old main feed info
             old_main_feed = self.active_feeds["main"].copy()
             
+            # Dynamically get the update method for the target feed
+            target_update_method = getattr(self, f"update_sub_feed{target_feed_id[-1]}", None)
+            
             # Start new main feed
-            rtsp_url = create_rtsp_url(target_feed_info)
-            self.detection_manager.start_detection(rtsp_url, self.update_main_feed, self.firedetect_dialog, self.smokedetect_dialog)
+            new_rtsp_url = create_rtsp_url(target_feed_info)
+            self.detection_manager.stop_detection(target_feed_id)  # Stop target feed first
+            self.detection_manager.start_detection(new_rtsp_url, self.update_main_feed, self.firedetect_dialog, self.smokedetect_dialog, feed_id='main')
             
-            # Update main feed with selected feed info
+            # Swap the feeds
+            # Update main feed storage
             self.active_feeds["main"] = target_feed_info.copy()
-
-            # Update main feed location text
-            self.ipinfo_feed1.setText(target_feed_info["location"])
             
-            # Update the original feed location with main feed info
+            # Restart the old main feed in the target feed's slot
+            old_main_rtsp_url = create_rtsp_url(old_main_feed)
+            self.detection_manager.start_detection(old_main_rtsp_url, target_update_method, self.firedetect_dialog, self.smokedetect_dialog, feed_id=target_feed_id)
+            
+            # Update the active feeds dictionary
             self.active_feeds[target_feed_id] = old_main_feed
+            
+            # Update location texts
+            self.ipinfo_feed1.setText(target_feed_info["location"])
             
             # Update the UI labels for the swapped feed
             try:
                 info_label = getattr(self, f"ipinfo_{target_feed_id}")
                 if info_label:
                     info_label.setText(old_main_feed["location"])
-                
-                # Update the feed display for the swapped feed
-                rtsp_url_old_main = create_rtsp_url(old_main_feed)
-                update_method = getattr(self, f"update_sub_feed{target_feed_id[-1]}", None)
-                if update_method:
-                    self.detection_manager.stop_detection(target_feed_id)  # Stop existing feed first
-                    self.detection_manager.start_detection(rtsp_url_old_main, update_method, self.firedetect_dialog, self.smokedetect_dialog)
             except Exception as e:
-                print(f"Error updating UI elements: {e}")
+                print(f"Error updating UI location text: {e}")
                 
         except Exception as e:
             print(f"Error in change_main_feed: {e}")
@@ -256,7 +266,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         if "main" not in self.active_feeds:
             # Start as main feed
             self.ipinfo_feed1.setText(cctv_info["location"])
-            self.detection_manager.start_detection(rtsp_url, self.update_main_feed, self.firedetect_dialog, self.smokedetect_dialog)
+            self.detection_manager.start_detection(rtsp_url, self.update_main_feed, self.firedetect_dialog, self.smokedetect_dialog, feed_id='main')
             self.active_feeds["main"] = cctv_info
             
             # Add to selection dropdowns
@@ -274,7 +284,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         if self.feed_count in feed_mapping:
             feed_key, update_method, feed_label = feed_mapping[self.feed_count]
             feed_label.setText(cctv_info["location"])
-            self.detection_manager.start_detection(rtsp_url, update_method, self.firedetect_dialog, self.smokedetect_dialog)
+            self.detection_manager.start_detection(rtsp_url, update_method, self.firedetect_dialog, self.smokedetect_dialog, feed_key)
             self.active_feeds[feed_key] = cctv_info
         else:
             print("Maximum number of feeds reached")
@@ -413,13 +423,242 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         # Execute the dialog
         setupdialog.exec()
 
-    def firedetect_dialog(self):
+    def notify_web_app(self, data):
+        response = requests.post(
+            'https://true-the-fire.onrender.com/api/desktop-notification/',
+            json=data,
+            headers={'Content-Type': 'application/json'}
+        )
+        return response.json()
+    
+    def upload_and_insert_report(
+        self,
+        bucket_name: str,
+        file_path: str,
+        storage_path: str,
+        where: str,
+        date: str,
+        time_detected: str,
+        status: str,
+    ):
+        """
+        Upload an image to Supabase storage and insert a report into the tempReports table.
+
+        :param bucket_name: Name of the Supabase storage bucket.
+        :param file_path: Local file path of the image to upload.
+        :param storage_path: Path within the bucket to save the file.
+        :param where: Location of the incident.
+        :param date: Date of the incident (YYYY-MM-DD).
+        :param time_detected: Time the incident was detected (HH:MM:SS).
+        :param status: Status of the incident report.
+        """
+        # Combine date and time into a full timestamp
+        full_timestamp = datetime.strptime(f"{date} {time_detected}", "%Y-%m-%d %H:%M:%S")
+
+        # Upload the image to Supabase Storage
+        with open(file_path, "rb") as file:
+            file_contents = file.read()
+            upload_response = supabase.storage.from_(bucket_name).upload(
+                storage_path, 
+                file_contents,  # Pass file contents directly
+                {"content-type": "image/jpeg"}  # Specify content type if known
+            )
+            print ("Upload Response", upload_response)
+
+        # Get the public URL of the uploaded image
+        public_url_response = supabase.storage.from_(bucket_name).get_public_url(storage_path)
+        print ("Public URL Response", public_url_response)
+
+        # Insert the report into the tempReports table
+        data = {
+            "where": where,
+            "date": date,
+            "time_detected": full_timestamp.isoformat(),
+            "proof": public_url_response,
+            "status": status,
+        }
+
+        try:
+            # Execute the insert and capture the response
+            response = supabase.table("FireDetection_tempreports").insert(data).execute()
+            print("Insert response:", response)
+            
+            # Check if data was inserted successfully and get the ID
+            if response.data and len(response.data) > 0:
+                inserted_id = response.data[0]['id']  # Assuming the first item has the ID
+                
+                # Notify web app with the new record's ID
+                self.notify_web_app({
+                    'type': 'new_record',
+                    'data': {
+                        'id': inserted_id,
+                        'type': 'fire_detection_report'
+                    }
+                })
+
+                # Start periodic image updates
+                # You can customize the feed_id if needed
+                update_thread = self.periodic_image_update(inserted_id)
+            
+            return response.data
+        except Exception as insert_err:
+            print(f"Insert Error: {insert_err}")
+            raise
+
+    def capture_current_feed_image(self, feed_id='main'):
+        # Mapping of feed IDs to their corresponding label widgets
+        feed_label_mapping = {
+            'main': self.lb_feed1,
+            'feed2': self.lb_feed2,
+            'feed3': self.lb_feed3,
+            'feed4': self.lb_feed4
+        }
+        
+        # Validate feed_id
+        if feed_id not in feed_label_mapping:
+            raise ValueError(f"Invalid feed_id: {feed_id}. Must be one of {list(feed_label_mapping.keys())}")
+        
+        # Get the corresponding label widget
+        label_widget = feed_label_mapping[feed_id]
+        
+        # Get the pixmap from the label
+        pixmap = label_widget.pixmap()
+        
+        if pixmap:
+            # Use Windows-compatible temporary directory
+            temp_dir = tempfile.gettempdir()
+            
+            # Create a temporary file path with the feed ID included
+            temp_image_filename = f"incident_proof_{feed_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+            temp_image_path = os.path.join(temp_dir, temp_image_filename)
+            
+            # Save the pixmap to the temporary file
+            save_result = pixmap.save(temp_image_path)
+            
+            # Add error checking for save
+            if not save_result:
+                raise Exception(f"Failed to save image for feed {feed_id}")
+            
+            # Verify file exists
+            if not os.path.exists(temp_image_path):
+                raise FileNotFoundError(f"Image file was not created at {temp_image_path}")
+            
+            print(f"Image saved to: {temp_image_path}")
+            return temp_image_path
+        
+        raise Exception(f"No image available to capture for feed {feed_id}")
+    
+    def periodic_image_update(self, initial_record_id, original_feed_id='main', total_duration=120, interval=30):
+        """
+        Periodically update the image for a specific report, dynamically tracking the feed.
+        
+        :param initial_record_id: ID of the initial report record
+        :param original_feed_id: Original feed ID when the report was created
+        :param total_duration: Total duration for updates (in seconds)
+        :param interval: Time between updates (in seconds)
+        """
+        def update_thread():
+            start_time = time.time()
+            update_count = 0
+            current_feed_id = original_feed_id
+            
+            while time.time() - start_time < total_duration:
+                try:
+                    # Dynamically determine the current feed to capture
+                    # This is the key modification - track the current feed for the original feed's location
+                    current_feed_id = self.get_current_feed_for_location(original_feed_id)
+                    
+                    # Capture new image from the current feed
+                    new_image_path = self.capture_current_feed_image(current_feed_id)
+                    
+                    # Upload the new image to the same bucket as the original
+                    bucket_name = "Fire Proofs"  # Replace with actual bucket name
+                    storage_path = f"fire_incident_{current_feed_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+                    
+                    # Open the file and read contents
+                    with open(new_image_path, "rb") as file:
+                        file_contents = file.read()
+                        upload_response = supabase.storage.from_(bucket_name).upload(
+                            storage_path, 
+                            file_contents,
+                            {"content-type": "image/jpeg"}
+                        )
+                    
+                    # Get the public URL of the uploaded image
+                    public_url_response = supabase.storage.from_(bucket_name).get_public_url(storage_path)
+                    
+                    # Update the existing record with the new image URL
+                    try:
+                        update_response = supabase.table("FireDetection_tempreports").update({
+                            "proof": public_url_response
+                        }).eq("id", initial_record_id).execute()
+                        
+                        # Optional: Add some error checking
+                        if not update_response.data:
+                            print(f"No data returned from update for record {initial_record_id}")
+                    except Exception as update_err:
+                        print(f"Error updating record: {update_err}")
+                    
+                    # Notify web app about the update
+                    self.notify_web_app({
+                        'type': 'updated_record',
+                        'data': {
+                            'id': initial_record_id,
+                            'type': 'fire_detection_report',
+                            'current_feed': current_feed_id
+                        }
+                    })
+                    
+                    # Clean up the temporary image file
+                    os.remove(new_image_path)
+                    
+                    # Increment update count and wait for next interval
+                    update_count += 1
+                    time.sleep(interval)
+                
+                except Exception as e:
+                    print(f"Error in periodic image update: {e}")
+                    break
+            
+            print(f"Periodic updates completed. Total updates: {update_count}")
+        
+        # Start the update process in a separate thread
+        update_thread = threading.Thread(target=update_thread)
+        update_thread.start()
+        return update_thread
+
+    def get_current_feed_for_location(self, original_feed_id):
+        """
+        Determine the current feed ID for a given original feed's location.
+        
+        :param original_feed_id: The original feed ID
+        :return: Current feed ID where the original location is displayed
+        """
+        # Get the original location
+        original_location = self.active_feeds.get(original_feed_id, {}).get("location")
+        
+        # Check all active feeds to find where this location is currently displayed
+        for feed_id, feed_info in self.active_feeds.items():
+            if feed_info.get("location") == original_location:
+                return feed_id
+        
+        # Fallback to the original feed ID if no match is found
+        return original_feed_id
+
+    def firedetect_dialog(self, feed_id):
         firedetectdialog = QDialog(self)
         fdetectdia_ui = UI.Ui_FireDialog()
         fdetectdia_ui.setupUi(firedetectdialog)
         fdetectdia_ui.setWindowTitle("A Fire has been detected")
 
-        # Center the dialog on the screen
+        # Define the mapping at the start of the method or use self.feed_location_mapping if it's a class attribute
+        feed_location_mapping = {
+            'main': self.ipinfo_feed1,
+            'feed2': self.ipinfo_feed2,
+            'feed3': self.ipinfo_feed3,
+            'feed4': self.ipinfo_feed4
+        }
+
         firedetectdialog.setModal(True)
         firedetectdialog.setGeometry(
             QStyle.alignedRect(
@@ -430,27 +669,67 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
             )
         )
 
-        # FUNCTIONS AND CHANGES TO THIS DIALOG MUST BE INSERTED BELOW THIS LINE
-
         # Function to close dialog on submit button click
-        def close_dialog():
+        def close_dialog(confirmed):
             try:
-                firedetectdialog.accept()  # Attempt to close the dialog
+                if confirmed:
+                    # Get current date and time
+                    current_date = datetime.now().strftime("%Y-%m-%d")
+                    current_time = datetime.now().strftime("%H:%M:%S")
+                    print(f"Current Date: {current_date}, Current Time: {current_time}")  # Debug print
+                    
+                    # Capture current feed image
+                    try:
+                        current_feed_image_path = self.capture_current_feed_image(feed_id)
+                        print(f"Captured image path: {current_feed_image_path}")  # Debug print
+                    except Exception as e:
+                        print(f"Error in capture_current_feed_image: {e}")
+                        traceback.print_exc()  # Print full traceback
+                        return
+                    
+                    # Upload report to Supabase
+                    try:
+                        self.upload_and_insert_report(
+                            bucket_name="Fire Proofs",
+                            file_path=current_feed_image_path,
+                            storage_path=f"fire_incident_{current_date}_{current_time}.jpg",
+                            where=feed_location_mapping.get(feed_id, '').text(),  # Location of main feed
+                            date=current_date,
+                            time_detected=current_time,
+                            status=None
+                        )
+                        print("Report uploaded successfully")  # Debug print
+                    except Exception as e:
+                        print(f"Error in upload_and_insert_report: {e}")
+                        traceback.print_exc()  # Print full traceback
+                        return
+                
+                # Close the dialog
+                firedetectdialog.accept()
+
             except Exception as e:
-                print("Failed to close the dialog:", e)
+                print(f"Unexpected error in close_dialog: {e}")
+                traceback.print_exc()  # Print full traceback
 
-        fdetectdia_ui.sd_yes.clicked.connect(close_dialog)
-        fdetectdia_ui.sd_no.clicked.connect(close_dialog)
-
-        # FUNCTIONS AND CHANGES TO THIS DIALOG MUST BE INSERTED ABOVE THIS LINE
+        # Update the connections
+        fdetectdia_ui.sd_yes.clicked.connect(lambda: close_dialog(True))
+        fdetectdia_ui.sd_no.clicked.connect(lambda: close_dialog(False))
 
         firedetectdialog.exec()
 
-    def smokedetect_dialog(self):
+    def smokedetect_dialog(self, feed_id):
         smokedetecdialog = QDialog(self)
         sdetectdia_ui = UI.Ui_SmokeDialog()
         sdetectdia_ui.setupUi(smokedetecdialog)
         smokedetecdialog.setWindowTitle("A Smoke has been detected")
+
+        # Define the mapping at the start of the method or use self.feed_location_mapping if it's a class attribute
+        feed_location_mapping = {
+            'main': self.ipinfo_feed1,
+            'feed2': self.ipinfo_feed2,
+            'feed3': self.ipinfo_feed3,
+            'feed4': self.ipinfo_feed4
+        }
 
         # Center the dialog on the screen
         smokedetecdialog.setModal(True)
@@ -463,21 +742,55 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
             )
         )
 
-        # FUNCTIONS AND CHANGES TO THIS DIALOG MUST BE INSERTED BELOW THIS LINE
-
         # Function to close dialog on submit button click
-        def close_dialog():
+        def close_dialog(confirmed):
             try:
-                smokedetecdialog.accept()  # Attempt to close the dialog
+                if confirmed:
+                    # Get current date and time
+                    current_date = datetime.now().strftime("%Y-%m-%d")
+                    current_time = datetime.now().strftime("%H:%M:%S")
+                    print(f"Current Date: {current_date}, Current Time: {current_time}")  # Debug print
+                    
+                    # Capture current feed image
+                    try:
+                        current_feed_image_path = self.capture_current_feed_image(feed_id)
+                        print(f"Captured image path: {current_feed_image_path}")  # Debug print
+                    except Exception as e:
+                        print(f"Error in capture_current_feed_image: {e}")
+                        traceback.print_exc()  # Print full traceback
+                        return
+                    
+                    # Upload report to Supabase
+                    try:
+                        self.upload_and_insert_report(
+                            bucket_name="Fire Proofs",
+                            file_path=current_feed_image_path,
+                            storage_path=f"fire_incident_{current_date}_{current_time}.jpg",
+                            where=feed_location_mapping.get(feed_id, '').text(),  # Location of main feed
+                            date=current_date,
+                            time_detected=current_time,
+                            status=None
+                        )
+                        print("Report uploaded successfully")  # Debug print
+                    except Exception as e:
+                        print(f"Error in upload_and_insert_report: {e}")
+                        traceback.print_exc()  # Print full traceback
+                        return
+                
+                # Close the dialog
+                smokedetecdialog.accept()
+
             except Exception as e:
-                print("Failed to close the dialog:", e)
+                print(f"Unexpected error in close_dialog: {e}")
+                traceback.print_exc()  # Print full traceback
 
-        sdetectdia_ui.sd_yes.clicked.connect(close_dialog)
-        sdetectdia_ui.sd_no.clicked.connect(close_dialog)
-
-        # FUNCTIONS AND CHANGES TO THIS DIALOG MUST BE INSERTED ABOVE THIS LINE
+        # Update the connections
+        sdetectdia_ui.sd_yes.clicked.connect(lambda: close_dialog(True))
+        sdetectdia_ui.sd_no.clicked.connect(lambda: close_dialog(False))
 
         smokedetecdialog.exec()
+    
+    
 
 
 

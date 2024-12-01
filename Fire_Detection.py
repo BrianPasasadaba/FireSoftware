@@ -7,19 +7,20 @@ from ultralytics import YOLO
 
 class VideoThread(QThread):
     change_pixmap_signal = Signal(QImage)
-    fire_detected_signal = Signal()  # New signal for fire detection
-    smoke_detected_signal = Signal()  # New signal for smoke detection
+    fire_detected_signal = Signal(str)  # Now includes feed identifier
+    smoke_detected_signal = Signal(str)  # Now includes feed identifier
     
-    def __init__(self, camera_id=0):
+    def __init__(self, camera_id=0, feed_id='main'):
         super().__init__()
         self.camera_id = camera_id
+        self.feed_id = feed_id
         self.running = True
         self.model = YOLO('yolov8.pt')
         
         # Add cooldown tracking to prevent spam
         self.last_fire_alert = 0
         self.last_smoke_alert = 0
-        self.alert_cooldown = 10  # Seconds between alerts
+        self.alert_cooldown = 60  # Seconds between alerts
         
         # Check if CUDA is available
         if torch.cuda.is_available():
@@ -30,12 +31,15 @@ class VideoThread(QThread):
             self.device = 'cpu'
             print("CUDA not available, using CPU.")
 
+        print("Available classes:", self.model.names)
+
     def run(self):
         cap = cv2.VideoCapture(self.camera_id)
+        frame_count = 0
         
         while self.running and cap.isOpened():
             ret, frame = cap.read()
-            if ret:
+            if ret and frame_count % 3 == 0:
                 # Resize the frame
                 resized_frame = cv2.resize(frame, (1024, 576))
                 
@@ -58,8 +62,6 @@ class VideoThread(QThread):
                         class_id = int(box.cls[0])
                         label = self.model.names[class_id]
 
-                        # Debug print
-                        print(f"Detected: {label} with confidence: {confidence:.2f}")   
 
                         # Check for fire or smoke detections
                         if label == 'Fire' and confidence > 0.5:
@@ -81,13 +83,24 @@ class VideoThread(QThread):
                                   0.5, color, 2)
                 
                 # Emit detection signals with cooldown
-                if fire_detected and (current_time - self.last_fire_alert) > self.alert_cooldown:
-                    self.fire_detected_signal.emit()
-                    self.last_fire_alert = current_time
-                    
+                # Emit detection signals
                 if smoke_detected and (current_time - self.last_smoke_alert) > self.alert_cooldown:
-                    self.smoke_detected_signal.emit()
-                    self.last_smoke_alert = current_time
+                    print("Attempting to emit smoke signal...")
+                    try:
+                        self.smoke_detected_signal.emit(self.feed_id)
+                        self.last_smoke_alert = current_time
+                        print("Smoke signal emitted successfully")
+                    except Exception as e:
+                        print(f"Error emitting smoke signal: {e}")
+                
+                if fire_detected and (current_time - self.last_fire_alert) > self.alert_cooldown:
+                    print("Attempting to emit fire signal...")
+                    try:
+                        self.fire_detected_signal.emit(self.feed_id)
+                        self.last_fire_alert = current_time
+                        print("Fire signal emitted successfully")
+                    except Exception as e:
+                        print(f"Error emitting fire signal: {e}")
                 
                 # Convert and emit frame
                 rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -101,6 +114,9 @@ class VideoThread(QThread):
                 # Emit the processed frame
                 # CHANGE PARAMETER TO scaled_image TO SCALE THE IMAGE
                 self.change_pixmap_signal.emit(qt_image)
+
+                # Increment frame count
+                frame_count += 1
         
         cap.release()
 
@@ -114,7 +130,7 @@ class DetectionManager:
     def __init__(self):
         self.threads = {}
 
-    def start_detection(self, camera_id, callback, fire_callback=None, smoke_callback=None):
+    def start_detection(self, camera_id, callback, fire_callback=None, smoke_callback=None, feed_id='main'):
         """
         Starts detection for a specific camera
         
@@ -125,12 +141,18 @@ class DetectionManager:
             smoke_callback: Smoke detection callback
         """
         if camera_id not in self.threads:
-            thread = VideoThread(camera_id)
+            thread = VideoThread(camera_id, feed_id)
             thread.change_pixmap_signal.connect(callback)
             if fire_callback:
-                thread.fire_detected_signal.connect(fire_callback)
+                # Modify connection to handle feed_id
+                thread.fire_detected_signal.connect(
+                    lambda detected_feed_id=feed_id: fire_callback(detected_feed_id)
+                )
             if smoke_callback:
-                thread.smoke_detected_signal.connect(smoke_callback)
+                # Modify connection to handle feed_id
+                thread.smoke_detected_signal.connect(
+                    lambda detected_feed_id=feed_id: smoke_callback(detected_feed_id)
+                )
             thread.start()
             self.threads[camera_id] = thread
 
