@@ -489,7 +489,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
                 
                 # Notify web app with the new record's ID
                 self.notify_web_app({
-                    'type': 'new_record',
+                    'type': 'new_temp_report',
                     'data': {
                         'id': inserted_id,
                         'type': 'fire_detection_report'
@@ -572,7 +572,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
                     new_image_path = self.capture_current_feed_image(current_feed_id)
                     
                     # Upload the new image to the same bucket as the original
-                    bucket_name = "Fire Proofs"  # Replace with actual bucket name
+                    bucket_name = "FireProof"  # Replace with actual bucket name
                     storage_path = f"fire_incident_{current_feed_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
                     
                     # Open the file and read contents
@@ -690,7 +690,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
                     # Upload report to Supabase
                     try:
                         self.upload_and_insert_report(
-                            bucket_name="Fire Proofs",
+                            bucket_name="FireProof",
                             file_path=current_feed_image_path,
                             storage_path=f"fire_incident_{current_date}_{current_time}.jpg",
                             where=feed_location_mapping.get(feed_id, '').text(),  # Location of main feed
@@ -763,7 +763,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
                     # Upload report to Supabase
                     try:
                         self.upload_and_insert_report(
-                            bucket_name="Fire Proofs",
+                            bucket_name="FireProof",
                             file_path=current_feed_image_path,
                             storage_path=f"fire_incident_{current_date}_{current_time}.jpg",
                             where=feed_location_mapping.get(feed_id, '').text(),  # Location of main feed
