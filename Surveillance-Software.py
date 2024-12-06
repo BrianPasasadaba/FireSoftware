@@ -113,6 +113,26 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         # QMessageBox.Retry
         # QMessageBox.Ignore
 
+        # Setup a timer to update date and time
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_datetime)
+        self.timer.start(1000)  # Update every 1000 ms (1 second)
+        
+        # Initial update
+        self.update_datetime()
+    
+    def update_datetime(self):
+        # Get current date and time
+        current_datetime = QDateTime.currentDateTime()
+        
+        # Update time label
+        time_str = current_datetime.toString("h:mm")
+        self.header_time.setText(time_str)
+        
+        # Update date label
+        date_str = current_datetime.toString("MMMM d, yyyy")
+        self.header_date.setText(date_str)
+
     def start_main_feed(self, cctv_info):
         """Starts the main feed with RTSP stream"""
         rtsp_url = create_rtsp_url(cctv_info)
