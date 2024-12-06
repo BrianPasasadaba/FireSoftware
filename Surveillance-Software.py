@@ -296,9 +296,9 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
 
         # Map feed_count to the corresponding feed
         feed_mapping = {
-            0: ("feed2", self.update_sub_feed2, self.ipinfo_feed2),
-            1: ("feed3", self.update_sub_feed3, self.ipinfo_feed3),
-            2: ("feed4", self.update_sub_feed4, self.ipinfo_feed4),
+            1: ("feed2", self.update_sub_feed2, self.ipinfo_feed2),
+            2: ("feed3", self.update_sub_feed3, self.ipinfo_feed3),
+            3: ("feed4", self.update_sub_feed4, self.ipinfo_feed4),
         }
 
         if self.feed_count in feed_mapping:
