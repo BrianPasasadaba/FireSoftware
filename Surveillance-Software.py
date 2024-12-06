@@ -97,11 +97,11 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
 
         # Set up message box
         self.msgbox = QMessageBox(self)
-        self.msgbox.setWindowTitle("Warning Message")
+        self.msgbox.setWindowTitle("Remove Camera Feed")
         self.msgbox.setIcon(QMessageBox.Critical)
         self.msgbox.setStandardButtons(QMessageBox.Cancel | QMessageBox.Ok)
         self.msgbox.setDefaultButton(QMessageBox.Ok)
-        self.msgbox.setInformativeText("Lorem ipsum Fire Surveillance System")
+        self.msgbox.setInformativeText("This will permanently remove the selected camera feed.")
         # QMessageBox.Ok
         # QMessageBox.Open
         # QMessageBox.Save
@@ -649,7 +649,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         firedetectdialog = QDialog(self)
         fdetectdia_ui = UI.Ui_FireDialog()
         fdetectdia_ui.setupUi(firedetectdialog)
-        fdetectdia_ui.setWindowTitle("A Fire has been detected")
+        firedetectdialog.setWindowTitle("A Fire has been detected")
 
         # Define the mapping at the start of the method or use self.feed_location_mapping if it's a class attribute
         feed_location_mapping = {
