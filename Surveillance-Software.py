@@ -17,12 +17,56 @@ import tempfile
 import requests
 import threading
 import time
+import cv2
 
 load_dotenv()
 
 url : str = os.getenv("SUPABASE_URL")
 key : str = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(url, key)
+
+class RTSPValidationThread(QThread):
+    # Define custom signals
+    result = Signal(bool)  # Signal to send validation result
+    finished = Signal()    # Signal to indicate thread completion
+
+    def __init__(self, rtsp_url):
+        """
+        Initialize the worker with RTSP URL to validate
+        
+        Args:
+            rtsp_url (str or int): RTSP URL or 0 for webcam
+        """
+        super().__init__()
+        self.rtsp_url = rtsp_url
+
+    def run(self):
+        """Validate RTSP URL in a background thread"""
+        try:
+            print(f"DEBUG: Attempting to validate RTSP URL: {self.rtsp_url}")
+            
+            # Special case for webcam
+            if self.rtsp_url == 0:
+                print("DEBUG: Webcam (0) detected, validation successful")
+                self.result.emit(True)
+                return
+
+            # Open video capture
+            cap = cv2.VideoCapture(self.rtsp_url)
+            try:
+                # Validate by attempting to read a frame
+                result = cap.isOpened() and cap.read()[0]
+                print(f"DEBUG: Validation result - isOpened: {cap.isOpened()}, frame read: {result}")
+                self.result.emit(result)
+            finally:
+                cap.release()  # Ensure the capture is always released
+
+        except Exception as e:
+            print(f"DEBUG: RTSP Validation Exception - {e}")
+            self.result.emit(False)
+        finally:
+            self.finished.emit()
+
 
 def create_rtsp_url(cctv_info):
     """Creates an RTSP URL from CCTV information"""
@@ -405,40 +449,73 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         lineEdit_usern = setupdia_ui.lineEdit_usern
         lineEdit_pass = setupdia_ui.lineEdit_pass
         lineEdit_ccloc = setupdia_ui.lineEdit_ccloc
-        # FUNCTIONS AND CHANGES TO THIS DIALOG MUST BE INSERTED BELOW THIS LINE
+
+        # Threadpool for background tasks
+        threadpool = QThreadPool()
 
         # Function to close dialog on submit button click
         def close_dialog():
+            """
+            Initiate RTSP URL validation when submit is clicked
+            """
             try:
-                # Get the input values from the fields
-                ip = lineEdit_ip.text()
-                username = lineEdit_usern.text()
-                password = lineEdit_pass.text()
-                cclocation = lineEdit_ccloc.text()
-
-                # Prepare the data to pass
+                print("DEBUG: close_dialog() called")
+                # Prepare CCTV info
                 cctv_info = {
-                    "ip": ip,
-                    "username": username,
-                    "password": password,
-                    "location": cclocation
+                    "ip": lineEdit_ip.text(),
+                    "username": lineEdit_usern.text(),
+                    "password": lineEdit_pass.text(),
+                    "location": lineEdit_ccloc.text()
                 }
-
-                # Pass data directly to the MainScreen method
-                self.add_new_cctv_feed(cctv_info)
-
-                # Print or use the values as needed (for now just printing)
-                print(f"IP: {ip}, Username: {username}, Password: {password}, CCTV Location: {cclocation}")
                 
-                # Close the dialog
-                setupdialog.accept()
+                # Create RTSP URL
+                rtsp_url = create_rtsp_url(cctv_info)
+                
+                # Set "validating" message
+                setupdia_ui.error_msg.setText("Validating CCTV stream... Please wait.")
+
+                # Create validation thread
+                self.validation_thread = RTSPValidationThread(rtsp_url)
+                
+                # Connect signals
+                self.validation_thread.result.connect(
+                    lambda is_valid, info=cctv_info: handle_validation_result(is_valid, info)
+                )
+                
+                # Start the thread
+                self.validation_thread.start()
+            
             except Exception as e:
-                print("Failed to close the dialog:", e)
+                print("Dialog setup error:", e)
+                setupdia_ui.error_msg.setText("An error occurred while setting up the CCTV feed.")
+
+        def handle_validation_result(is_valid, cctv_info):
+            """
+            Handle the result of RTSP URL validation
+            
+            Args:
+                is_valid (bool): Whether the RTSP URL is valid
+                cctv_info (dict): CCTV configuration information
+            """
+            print(f"DEBUG: Validation result received. Valid: {is_valid}")
+            if is_valid:
+                # Add new CCTV feed
+                self.add_new_cctv_feed(cctv_info)
+                setupdialog.accept()
+            else:
+                # Clear input fields
+                lineEdit_ip.clear()
+                lineEdit_usern.clear()
+                lineEdit_pass.clear()
+                lineEdit_ccloc.clear()
+                
+                # Set error message
+                setupdia_ui.error_msg.setText("Invalid RTSP URL. Please check credentials and network.")
+
 
         setupdia_ui.pbtn_submit.clicked.connect(close_dialog)
         #setupdia_ui.error_msg.setText("This is the updated error message.")
 
-        # FUNCTIONS AND CHANGES TO THIS DIALOG MUST BE INSERTED ABOVE THIS LINE
 
         # Execute the dialog
         setupdialog.exec()

@@ -200,6 +200,6 @@ class Ui_Dialog(object):
         self.label_usern.setText(QCoreApplication.translate("Dialog", u"Username:", None))
         self.label_pass.setText(QCoreApplication.translate("Dialog", u"Password:", None))
         self.label_ccloc.setText(QCoreApplication.translate("Dialog", u"CCTV Location:", None))
-        self.error_msg.setText(QCoreApplication.translate("Dialog", u"Warning Message!", None))
+        # self.error_msg.setText(QCoreApplication.translate("Dialog", u"Warning Message!", None))
     # retranslateUi
 
