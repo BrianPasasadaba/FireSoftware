@@ -39,7 +39,7 @@ class VideoThread(QThread):
         
         while self.running and cap.isOpened():
             ret, frame = cap.read()
-            if ret and frame_count % 3 == 0:
+            if ret:
                 # Resize the frame
                 resized_frame = cv2.resize(frame, (1024, 576))
                 
@@ -48,7 +48,7 @@ class VideoThread(QThread):
                 frame_tensor /= 255.0
                 
                 # Perform YOLO inference
-                results = self.model(frame_tensor)
+                results = self.model(frame_tensor, stream=True)
                 
                 current_time = time.time()
                 fire_detected = False
@@ -64,7 +64,7 @@ class VideoThread(QThread):
 
 
                         # Check for fire or smoke detections
-                        if label == 'Fire' and confidence > 0.5:
+                        if (label == 'Fire' or label == 'Fires') and confidence > 0.4:
                             fire_detected = True
                             color = (0, 0, 255)  # Red for fire
                             print(f"Fire detected with confidence {confidence:.2f}")
@@ -115,8 +115,6 @@ class VideoThread(QThread):
                 # CHANGE PARAMETER TO scaled_image TO SCALE THE IMAGE
                 self.change_pixmap_signal.emit(qt_image)
 
-                # Increment frame count
-                frame_count += 1
         
         cap.release()
 
