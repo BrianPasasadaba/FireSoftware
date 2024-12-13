@@ -170,7 +170,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         current_datetime = QDateTime.currentDateTime()
         
         # Update time label
-        time_str = current_datetime.toString("h:mm")
+        time_str = current_datetime.toString("h:mm AP")
         self.header_time.setText(time_str)
         
         # Update date label
