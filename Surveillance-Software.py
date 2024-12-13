@@ -746,7 +746,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         firedetectdialog = QDialog(self)
         fdetectdia_ui = UI.Ui_FireDialog()
         fdetectdia_ui.setupUi(firedetectdialog)
-        firedetectdialog.setWindowTitle("A Fire has been detected")
+        
 
         # Define the mapping at the start of the method or use self.feed_location_mapping if it's a class attribute
         feed_location_mapping = {
@@ -755,6 +755,12 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
             'feed3': self.ipinfo_feed3,
             'feed4': self.ipinfo_feed4
         }
+
+        # Get the location for the specific feed
+        feed_location = feed_location_mapping.get(feed_id, QLabel()).text()
+        firedetectdialog.setWindowTitle(f"A fire has been detected at {feed_location}")
+        # Modify the header text to include location
+        fdetectdia_ui.SDetect_header.setText(QCoreApplication.translate("Dialog", f"A Fire has been Detected at {feed_location}!", None))
 
         firedetectdialog.setModal(True)
         firedetectdialog.setGeometry(
@@ -765,6 +771,10 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
                 QApplication.primaryScreen().availableGeometry()
             )
         )
+
+        # Create a QTimer for automatic confirmation
+        auto_confirm_timer = QTimer(firedetectdialog)
+        auto_confirm_timer.setSingleShot(True)  # Timer will only trigger once
 
         # Function to close dialog on submit button click
         def close_dialog(confirmed):
@@ -800,6 +810,12 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
                         print(f"Error in upload_and_insert_report: {e}")
                         traceback.print_exc()  # Print full traceback
                         return
+                    
+                    # Extend cooldown for this specific feed
+                    if feed_id in self.detection_manager.threads:
+                        thread = self.detection_manager.threads[feed_id]
+                        thread.alert_cooldown = 900  # Extend to 15 minutes
+                        print(f"Cooldown for {feed_id} extended to 15 minutes")
                 
                 # Close the dialog
                 firedetectdialog.accept()
@@ -807,6 +823,15 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
             except Exception as e:
                 print(f"Unexpected error in close_dialog: {e}")
                 traceback.print_exc()  # Print full traceback
+
+        # Function to automatically confirm after 30 seconds
+        def auto_confirm():
+            if firedetectdialog.isVisible():
+                QMetaObject.invokeMethod(fdetectdia_ui.sd_yes, "click", Qt.QueuedConnection)
+
+        # Set up the auto-confirm timer
+        auto_confirm_timer.timeout.connect(auto_confirm)
+        auto_confirm_timer.start(30000)  # 30 seconds (30000 milliseconds)
 
         # Update the connections
         fdetectdia_ui.sd_yes.clicked.connect(lambda: close_dialog(True))
@@ -818,7 +843,6 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         smokedetecdialog = QDialog(self)
         sdetectdia_ui = UI.Ui_SmokeDialog()
         sdetectdia_ui.setupUi(smokedetecdialog)
-        smokedetecdialog.setWindowTitle("A Smoke has been detected")
 
         # Define the mapping at the start of the method or use self.feed_location_mapping if it's a class attribute
         feed_location_mapping = {
@@ -827,6 +851,12 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
             'feed3': self.ipinfo_feed3,
             'feed4': self.ipinfo_feed4
         }
+
+        # Get the location for the specific feed
+        feed_location = feed_location_mapping.get(feed_id, QLabel()).text()
+        smokedetecdialog.setWindowTitle(f"Smoke has been detected at {feed_location}")
+        # Modify the header text to include location
+        sdetectdia_ui.SDetect_header.setText(QCoreApplication.translate("Dialog", f"Smoke has been Detected at {feed_location}!", None))
 
         # Center the dialog on the screen
         smokedetecdialog.setModal(True)
@@ -839,6 +869,10 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
             )
         )
 
+        # Create a QTimer for automatic confirmation
+        auto_confirm_timer = QTimer(smokedetecdialog)
+        auto_confirm_timer.setSingleShot(True)  # Timer will only trigger once
+
         # Function to close dialog on submit button click
         def close_dialog(confirmed):
             try:
@@ -873,6 +907,12 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
                         print(f"Error in upload_and_insert_report: {e}")
                         traceback.print_exc()  # Print full traceback
                         return
+                    
+                    # Extend cooldown for this specific feed
+                    if feed_id in self.detection_manager.threads:
+                        thread = self.detection_manager.threads[feed_id]
+                        thread.alert_cooldown = 900  # Extend to 15 minutes
+                        print(f"Cooldown for {feed_id} extended to 15 minutes")
                 
                 # Close the dialog
                 smokedetecdialog.accept()
@@ -880,6 +920,15 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
             except Exception as e:
                 print(f"Unexpected error in close_dialog: {e}")
                 traceback.print_exc()  # Print full traceback
+
+        # Function to automatically confirm after 30 seconds
+        def auto_confirm():
+            if smokedetecdialog.isVisible():
+                QMetaObject.invokeMethod(sdetectdia_ui.sd_yes, "click", Qt.QueuedConnection)
+
+        # Set up the auto-confirm timer
+        auto_confirm_timer.timeout.connect(auto_confirm)
+        auto_confirm_timer.start(30000)  # 30 seconds (30000 milliseconds)
 
         # Update the connections
         sdetectdia_ui.sd_yes.clicked.connect(lambda: close_dialog(True))

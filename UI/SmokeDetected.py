@@ -125,7 +125,7 @@ class Ui_SmokeDialog(object):
         Dialog.setWindowTitle(QCoreApplication.translate("Dialog", u"Dialog", None))
         self.SDetect_message.setText(QCoreApplication.translate("Dialog", u"Would you like\n"
 "to send a report to BFP?", None))
-        self.SDetect_header.setText(QCoreApplication.translate("Dialog", u"A Smoke has been Detected!", None))
+        # self.SDetect_header.setText(QCoreApplication.translate("Dialog", u"A Smoke has been Detected!", None))
         self.sd_btnbox.setTitle("")
         self.sd_yes.setText(QCoreApplication.translate("Dialog", u"YES", None))
         self.sd_no.setText(QCoreApplication.translate("Dialog", u"NO", None))
