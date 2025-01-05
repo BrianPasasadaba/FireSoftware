@@ -573,6 +573,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
             "time_detected": full_timestamp.isoformat(),
             "proof": public_url_response,
             "status": status,
+            "is_transferred": False,
         }
 
         try:
