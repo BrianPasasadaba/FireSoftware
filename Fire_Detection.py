@@ -18,8 +18,7 @@ class VideoThread(QThread):
         self.model = YOLO('yolov8.pt')
         
         # Add cooldown tracking to prevent spam
-        self.last_fire_alert = 0
-        self.last_smoke_alert = 0
+        self.last_alert = 0
         self.alert_cooldown = 300  # Seconds between alerts
         
         # Check if CUDA is available
@@ -41,7 +40,7 @@ class VideoThread(QThread):
             ret, frame = cap.read()
             if ret:
                 # Resize the frame
-                resized_frame = cv2.resize(frame, (1024, 576))
+                resized_frame = cv2.resize(frame, (1120, 640))
                 
                 # Convert frame for YOLO
                 frame_tensor = torch.from_numpy(resized_frame).permute(2, 0, 1).unsqueeze(0).float()
@@ -68,12 +67,13 @@ class VideoThread(QThread):
                             fire_detected = True
                             color = (0, 0, 255)  # Red for fire
                             print(f"Fire detected with confidence {confidence:.2f}")
-                        elif (label == 'smoke' or label == 'smokes') and confidence > 0.6:
+                        elif (label == 'smoke' or label == 'smokes') and confidence > 0.5:
                             smoke_detected = True
                             color = (128, 128, 128)  # Gray for smoke
                             print(f"Smoke detected with confidence {confidence:.2f}")
                         else:
-                            color = (0, 255, 0)  # Green for other objects
+                            color = (0, 255, 0)
+
                         
                         # Draw bounding box and label
                         cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
@@ -84,20 +84,20 @@ class VideoThread(QThread):
                 
                 # Emit detection signals with cooldown
                 # Emit detection signals
-                if smoke_detected and (current_time - self.last_smoke_alert) > self.alert_cooldown:
+                if smoke_detected and (current_time - self.last_alert) > self.alert_cooldown:
                     print("Attempting to emit smoke signal...")
                     try:
                         self.smoke_detected_signal.emit(self.feed_id)
-                        self.last_smoke_alert = current_time
+                        self.last_alert = current_time
                         print("Smoke signal emitted successfully")
                     except Exception as e:
                         print(f"Error emitting smoke signal: {e}")
                 
-                if fire_detected and (current_time - self.last_fire_alert) > self.alert_cooldown:
+                if fire_detected and (current_time - self.last_alert) > self.alert_cooldown:
                     print("Attempting to emit fire signal...")
                     try:
                         self.fire_detected_signal.emit(self.feed_id)
-                        self.last_fire_alert = current_time
+                        self.last_alert = current_time
                         print("Fire signal emitted successfully")
                     except Exception as e:
                         print(f"Error emitting fire signal: {e}")
