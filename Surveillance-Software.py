@@ -336,6 +336,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
             # Add to selection dropdowns
             self.feed_ipselect.addItem(feed_text)
             self.remove_ipselect.addItem(feed_text)
+            self.feed_count += 1
             return
 
         # Map feed_count to the corresponding feed
