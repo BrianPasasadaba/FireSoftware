@@ -993,6 +993,21 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         smokedetecdialog.closeEvent = handle_close_event
 
         smokedetecdialog.exec()
+
+    def closeEvent(self, event):
+        # Create the message box
+        reply = QMessageBox.question(
+            self,
+            'Confirm Exit',
+            'Are you sure you want to exit?',
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No  # Default button
+        )
+        
+        if reply == QMessageBox.Yes:
+            event.accept()  # Close the window
+        else:
+            event.ignore()  # Cancel the close event
     
     
 
