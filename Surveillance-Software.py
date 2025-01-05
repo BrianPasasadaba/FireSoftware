@@ -770,6 +770,24 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         auto_confirm_timer = QTimer(firedetectdialog)
         auto_confirm_timer.setSingleShot(True)  # Timer will only trigger once
 
+        def show_success_message():
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Information)
+            msg_box.setWindowTitle("Success")
+            msg_box.setText("Report has been submitted successfully.")
+            msg_box.setStandardButtons(QMessageBox.Ok)
+            msg_box.setModal(False)  # Make the message box non-modal
+            msg_box.show()
+
+        def show_dismiss_message():
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Information)
+            msg_box.setWindowTitle("Dismissed")
+            msg_box.setText("Report has been dismissed.")
+            msg_box.setStandardButtons(QMessageBox.Ok)
+            msg_box.setModal(False)
+            msg_box.show()
+
         # Function to close dialog on submit button click
         def close_dialog(confirmed):
             try:
@@ -811,17 +829,30 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
                         thread.alert_cooldown = 900  # Extend to 15 minutes
                         print(f"Cooldown for {feed_id} extended to 15 minutes")
                 
-                # Close the dialog
-                firedetectdialog.accept()
+                    
+                    # Show success message after successful upload
+                    QTimer.singleShot(10, show_success_message)
+                else:
+                    # Show dismiss message if "No" was clicked
+                    QTimer.singleShot(10, show_dismiss_message)
 
             except Exception as e:
                 print(f"Unexpected error in close_dialog: {e}")
                 traceback.print_exc()  # Print full traceback
+            
+            finally:
+                # Close the dialog
+                firedetectdialog.accept()
 
         # Function to automatically confirm after 30 seconds
         def auto_confirm():
             if firedetectdialog.isVisible():
                 QMetaObject.invokeMethod(fdetectdia_ui.sd_yes, "click", Qt.QueuedConnection)
+
+        # Handle the dialog close event (X button)
+        def handle_close_event(event):
+            show_dismiss_message()
+            event.accept()
 
         # Set up the auto-confirm timer
         auto_confirm_timer.timeout.connect(auto_confirm)
@@ -830,6 +861,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         # Update the connections
         fdetectdia_ui.sd_yes.clicked.connect(lambda: close_dialog(True))
         fdetectdia_ui.sd_no.clicked.connect(lambda: close_dialog(False))
+        firedetectdialog.closeEvent = handle_close_event
 
         firedetectdialog.exec()
 
@@ -867,6 +899,24 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         auto_confirm_timer = QTimer(smokedetecdialog)
         auto_confirm_timer.setSingleShot(True)  # Timer will only trigger once
 
+        def show_success_message():
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Information)
+            msg_box.setWindowTitle("Success")
+            msg_box.setText("Report has been submitted successfully.")
+            msg_box.setStandardButtons(QMessageBox.Ok)
+            msg_box.setModal(False)  # Make the message box non-modal
+            msg_box.show()
+
+        def show_dismiss_message():
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Information)
+            msg_box.setWindowTitle("Dismissed")
+            msg_box.setText("Report has been dismissed.")
+            msg_box.setStandardButtons(QMessageBox.Ok)
+            msg_box.setModal(False)
+            msg_box.show()
+
         # Function to close dialog on submit button click
         def close_dialog(confirmed):
             try:
@@ -907,18 +957,30 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
                         thread = self.detection_manager.threads[feed_id]
                         thread.alert_cooldown = 900  # Extend to 15 minutes
                         print(f"Cooldown for {feed_id} extended to 15 minutes")
-                
-                # Close the dialog
-                smokedetecdialog.accept()
+                    
+                    # Show success message after successful upload
+                    QTimer.singleShot(10, show_success_message)
+                else:
+                    # Show dismiss message if "No" was clicked
+                    QTimer.singleShot(10, show_dismiss_message)
 
             except Exception as e:
                 print(f"Unexpected error in close_dialog: {e}")
                 traceback.print_exc()  # Print full traceback
+            
+            finally:
+                # Close the dialog
+                smokedetecdialog.accept()
 
         # Function to automatically confirm after 30 seconds
         def auto_confirm():
             if smokedetecdialog.isVisible():
                 QMetaObject.invokeMethod(sdetectdia_ui.sd_yes, "click", Qt.QueuedConnection)
+
+        # Handle the dialog close event (X button)
+        def handle_close_event(event):
+            show_dismiss_message()
+            event.accept()
 
         # Set up the auto-confirm timer
         auto_confirm_timer.timeout.connect(auto_confirm)
@@ -927,6 +989,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         # Update the connections
         sdetectdia_ui.sd_yes.clicked.connect(lambda: close_dialog(True))
         sdetectdia_ui.sd_no.clicked.connect(lambda: close_dialog(False))
+        smokedetecdialog.closeEvent = handle_close_event
 
         smokedetecdialog.exec()
     
