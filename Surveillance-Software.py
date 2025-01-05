@@ -363,17 +363,27 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
 
 
     def update_sub_feed2(self, image):
-        """Updates the second sub-feed display, preserving 16:9 aspect ratio"""
-
+        """Updates the second sub-feed display, enforcing 16:9 aspect ratio"""
+        
         label_width = self.lb_feed2.width()
         label_height = self.lb_feed2.height()
 
-        # Calculate the height based on the 16:9 aspect ratio
-        target_width = label_height * 16 / 9
-
-        # Scale the image to the calculated height, preserving aspect ratio
-        scaled_image = image.scaledToWidth(int(target_width))
-
+        # Force 16:9 ratio regardless of input image dimensions
+        desired_ratio = 16/9
+        
+        # Calculate dimensions that fit in the label while maintaining 16:9
+        if (label_width / label_height) > desired_ratio:
+            # Width is the constraint
+            new_height = label_height
+            new_width = int(new_height * desired_ratio)
+        else:
+            # Height is the constraint
+            new_width = label_width
+            new_height = int(new_width / desired_ratio)
+        
+        # Scale image to these exact dimensions
+        scaled_image = image.scaled(new_width, new_height, Qt.IgnoreAspectRatio)
+        
         # Update the label with the scaled image
         self.lb_feed2.setPixmap(QPixmap.fromImage(scaled_image))
 
@@ -383,12 +393,22 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         label_width = self.lb_feed3.width()
         label_height = self.lb_feed3.height()
 
-        # Calculate the height based on the 16:9 aspect ratio
-        target_width = label_height * 16 / 9
-
-        # Scale the image to the calculated height, preserving aspect ratio
-        scaled_image = image.scaledToWidth(int(target_width))
-
+        # Force 16:9 ratio regardless of input image dimensions
+        desired_ratio = 16/9
+        
+        # Calculate dimensions that fit in the label while maintaining 16:9
+        if (label_width / label_height) > desired_ratio:
+            # Width is the constraint
+            new_height = label_height
+            new_width = int(new_height * desired_ratio)
+        else:
+            # Height is the constraint
+            new_width = label_width
+            new_height = int(new_width / desired_ratio)
+        
+        # Scale image to these exact dimensions
+        scaled_image = image.scaled(new_width, new_height, Qt.IgnoreAspectRatio)
+        
         # Update the label with the scaled image
         self.lb_feed3.setPixmap(QPixmap.fromImage(scaled_image))
 
@@ -397,12 +417,22 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
         label_width = self.lb_feed4.width()
         label_height = self.lb_feed4.height()
 
-        # Calculate the height based on the 16:9 aspect ratio
-        target_width = label_height * 16 / 9
-
-        # Scale the image to the calculated height, preserving aspect ratio
-        scaled_image = image.scaledToWidth(int(target_width))
-
+        # Force 16:9 ratio regardless of input image dimensions
+        desired_ratio = 16/9
+        
+        # Calculate dimensions that fit in the label while maintaining 16:9
+        if (label_width / label_height) > desired_ratio:
+            # Width is the constraint
+            new_height = label_height
+            new_width = int(new_height * desired_ratio)
+        else:
+            # Height is the constraint
+            new_width = label_width
+            new_height = int(new_width / desired_ratio)
+        
+        # Scale image to these exact dimensions
+        scaled_image = image.scaled(new_width, new_height, Qt.IgnoreAspectRatio)
+        
         # Update the label with the scaled image
         self.lb_feed4.setPixmap(QPixmap.fromImage(scaled_image))
 
