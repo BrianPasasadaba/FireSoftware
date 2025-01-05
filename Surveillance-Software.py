@@ -587,10 +587,7 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
                 # Notify web app with the new record's ID
                 self.notify_web_app({
                     'type': 'new_temp_report',
-                    'data': {
-                        'id': inserted_id,
-                        'type': 'fire_detection_report'
-                    }
+                    'report_id': inserted_id,
                 })
 
                 # Start periodic image updates
@@ -699,11 +696,8 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
                     # Notify web app about the update
                     self.notify_web_app({
                         'type': 'updated_record',
-                        'data': {
-                            'id': initial_record_id,
-                            'type': 'fire_detection_report',
-                            'current_feed': current_feed_id
-                        }
+                        'report_id': initial_record_id,
+                        'current_feed': current_feed_id
                     })
                     
                     # Clean up the temporary image file
