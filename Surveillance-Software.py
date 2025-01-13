@@ -299,17 +299,27 @@ class MainScreen(QMainWindow,UI.Ui_MainWindow):
                     self.remove_ipselect.removeItem(index)
                 
                 # Reset feed to default state
-                if feed_id in ["feed2", "feed3", "feed4"]:
-                    # Reset the label text
-                    getattr(self, f"ipinfo_{feed_id}").setText("IP Location")
-                    getattr(self, f"lb_{feed_id}").setText(self.default_labels[feed_id])
-                    
-                    # Create a default QPixmap with background color
-                    default_pixmap = QPixmap(640, 360)  # 16:9 aspect ratio
-                    default_pixmap.fill(Qt.gray)  # Fill with gray background
+                if feed_id == "main":
+                    # Reset the label text for main feed
+                    self.ipinfo_feed1.setText("IP Location")
                     
                     # Set the default pixmap
-                    getattr(self, f"lb_{feed_id}").setPixmap(default_pixmap)
+                    self.lb_feed1.clear()
+
+                    self.lb_feed1.setText("FEED 1")  
+                    
+                    # Update active feeds with default values
+                    self.active_feeds["main"] = self.default_feed.copy()
+                    self.active_feeds["main"]["location"] = "Main Feed"
+
+                elif feed_id in ["feed2", "feed3", "feed4"]:
+                    # Reset the label text for other feeds
+                    getattr(self, f"ipinfo_{feed_id}").setText("IP Location")
+                    
+                    # Set the default pixmap
+                    getattr(self, f"lb_{feed_id}").clear()
+
+                    getattr(self, f"lb_{feed_id}").setText(self.default_labels[feed_id])
                     
                     # Update active feeds with default values
                     self.active_feeds[feed_id] = self.default_feed.copy()
